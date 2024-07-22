@@ -1,1 +1,3 @@
-# copypaste.md
+I'm Harshal Abak, a recent graduate in Computer Engineering from VIT, Pune (2024). Throughout my studies, I developed a strong interest in Generative AI and Backend Development. These interests led me to work on various projects, enhancing my proficiency in programming languages like C++, Java, and Python, as well as backend technologies such as Node.js and Flask.During my internship as a Backend and Machine Learning intern, I gained hands-on experience in managing SQL databases, utilizing AWS and cloud services, and building, scaling, and testing APIs. 
+Beyond academics and professional interests, I enjoy exploring new technologies, reading about advancements in AI, and contributing to open-source projects. In my free time, I like to play chess and indulge in outdoor activities like hiking and cycling.
+
