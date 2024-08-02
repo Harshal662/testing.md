@@ -1,262 +1,241 @@
-Sure! Below are the steps and files you'll need to set up your project in IntelliJ IDEA.
+Sure, I'll guide you through creating a Spring Boot project from scratch. Here’s a step-by-step guide:
 
-### Step 1: Create a New Project in IntelliJ IDEA
+### Step 1: Set Up Your Development Environment
 
-1. Open IntelliJ IDEA.
-2. Select "New Project".
-3. Choose "Maven" from the left sidebar.
-4. Enter your project's GroupId and ArtifactId. For example:
-   - GroupId: `com.yourcompany`
-   - ArtifactId: `MultiApiRequestProject`
-5. Click "Finish".
+1. **Install Java Development Kit (JDK)**
+   - Download and install the latest JDK (Java Development Kit) from [Oracle](https://www.oracle.com/java/technologies/javase-jdk11-downloads.html) or [OpenJDK](https://adoptium.net/).
 
-### Step 2: Set Up Project Structure
+2. **Install an Integrated Development Environment (IDE)**
+   - Recommended IDEs for Java and Spring Boot are [IntelliJ IDEA](https://www.jetbrains.com/idea/) and [Eclipse](https://www.eclipse.org/).
 
-IntelliJ will create a basic Maven project structure for you. You'll need to create the necessary directories and files as follows:
+### Step 2: Create a New Spring Boot Project
 
-```
-MultiApiRequestProject
-├── src
-│   ├── main
-│   │   ├── java
-│   │   │   └── com
-│   │   │       └── yourpackage
-│   │   │           └── MultiApiRequest.java
-│   │   └── resources
-│   │       └── config.properties
-│   └── test
-│       └── java
-│           └── com
-│               └── yourpackage
-│                   └── MultiApiRequestTest.java
-├── target
-│   └── ...
-├── pom.xml
-└── README.md
-```
+1. **Using Spring Initializr**
 
-### Step 3: Create the `config.properties` File
+   Spring Initializr is a web-based tool that generates a Spring Boot project structure for you.
 
-Create the `config.properties` file in the `src/main/resources` directory:
+   - Go to [Spring Initializr](https://start.spring.io/).
+   - Fill out the form with the following settings:
+     - **Project**: Maven Project (or Gradle Project if preferred)
+     - **Language**: Java
+     - **Spring Boot Version**: Choose the latest stable version
+     - **Group**: com.example
+     - **Artifact**: myapiapp
+     - **Name**: MyApiApp
+     - **Package Name**: com.example.myapiapp
+     - **Packaging**: Jar
+     - **Java**: 11 or 17 (whichever version is installed)
+   - **Dependencies**: Add the following dependencies:
+     - Spring Web
+     - Spring Boot DevTools (for easier development)
+     - Spring Configuration Processor (for configuration properties)
+   - Click **Generate** to download a zip file containing your project.
 
-#### `config.properties`
+2. **Extract and Import the Project**
 
-```properties
-# Proxy settings
-proxyHost=your_proxy_host
-proxyPort=your_proxy_port
+   - Extract the zip file to your desired location.
+   - Open your IDE and import the project as a Maven or Gradle project.
 
-# IDCS Token API
-idcsTokenApiUrl=https://example.com/idcs/token
+### Step 3: Add Required Dependencies
 
-# Other APIs
-api1Url=https://example.com/api1
-api1Headers=header1:value1,header2:value2
-api1Payload={"key1": "value1", "key2": "value2"}
-
-api2Url=https://example.com/api2
-api2Headers=header1:value1,header2:value2
-api2Payload={"key1": "value1", "key2": "value2"}
-
-# File paths to store responses
-responseFile1=path_to_store_response1.json
-responseFile2=path_to_store_response2.json
-```
-
-### Step 4: Create the `MultiApiRequest.java` File
-
-Create the `MultiApiRequest.java` file in the `src/main/java/com/yourpackage` directory:
-
-#### `MultiApiRequest.java`
-
-```java
-package com.yourpackage;
-
-import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Properties;
-
-public class MultiApiRequest {
-
-    private static Properties properties = new Properties();
-
-    public static void main(String[] args) {
-        try {
-            // Load properties
-            loadProperties();
-
-            // Get IDCS token
-            String token = getIdcsToken();
-
-            // Make API requests
-            makeApiRequest(properties.getProperty("api1Url"), properties.getProperty("api1Headers"), properties.getProperty("api1Payload"), properties.getProperty("responseFile1"), token);
-            makeApiRequest(properties.getProperty("api2Url"), properties.getProperty("api2Headers"), properties.getProperty("api2Payload"), properties.getProperty("responseFile2"), token);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static void loadProperties() throws IOException {
-        try (InputStream input = new FileInputStream("src/main/resources/config.properties")) {
-            properties.load(input);
-        }
-    }
-
-    private static String getIdcsToken() throws IOException {
-        URL url = new URL(properties.getProperty("idcsTokenApiUrl"));
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-
-        // Set proxy if needed
-        System.setProperty("http.proxyHost", properties.getProperty("proxyHost"));
-        System.setProperty("http.proxyPort", properties.getProperty("proxyPort"));
-
-        conn.setRequestMethod("POST");  // Assuming it's a POST request
-        conn.setDoOutput(true);
-
-        if (conn.getResponseCode() == 200) {
-            try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
-                String inputLine;
-                StringBuilder content = new StringBuilder();
-                while ((inputLine = in.readLine()) != null) {
-                    content.append(inputLine);
-                }
-                return parseTokenFromResponse(content.toString());
-            }
-        } else {
-            throw new IOException("Failed to get IDCS token: HTTP error code : " + conn.getResponseCode());
-        }
-    }
-
-    private static String parseTokenFromResponse(String response) {
-        // Implement JSON parsing to extract the token
-        // Assuming the response JSON is like {"token": "YOUR_TOKEN"}
-        // Use your preferred JSON library, e.g., org.json, Gson, Jackson, etc.
-        // For simplicity, let's assume the token is directly the response for now
-        return response;
-    }
-
-    private static void makeApiRequest(String apiUrl, String headers, String payload, String responseFilePath, String token) throws IOException {
-        URL url = new URL(apiUrl);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-
-        // Disable proxy for API request
-        System.setProperty("http.proxyHost", "");
-        System.setProperty("http.proxyPort", "");
-
-        conn.setRequestMethod("POST");  // Assuming it's a POST request
-        conn.setRequestProperty("Authorization", "Bearer " + token);
-        conn.setDoOutput(true);
-
-        // Set additional headers
-        if (headers != null && !headers.isEmpty()) {
-            String[] headerPairs = headers.split(",");
-            for (String headerPair : headerPairs) {
-                String[] header = headerPair.split(":");
-                conn.setRequestProperty(header[0].trim(), header[1].trim());
-            }
-        }
-
-        // Set JSON payload
-        if (payload != null && !payload.isEmpty()) {
-            try (OutputStream os = conn.getOutputStream()) {
-                byte[] input = payload.getBytes("utf-8");
-                os.write(input, 0, input.length);
-            }
-        }
-
-        if (conn.getResponseCode() == 200) {
-            try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
-                String inputLine;
-                StringBuilder content = new StringBuilder();
-                while ((inputLine = in.readLine()) != null) {
-                    content.append(inputLine);
-                }
-                saveResponseToFile(responseFilePath, content.toString());
-            }
-        } else {
-            throw new IOException("Failed to get API response: HTTP error code : " + conn.getResponseCode());
-        }
-    }
-
-    private static void saveResponseToFile(String filePath, String content) throws IOException {
-        Files.write(Paths.get(filePath), content.getBytes());
-    }
-}
-```
-
-### Step 5: Create the `pom.xml` File
-
-Ensure your `pom.xml` includes the necessary dependencies:
-
-#### `pom.xml`
+If you're using Maven, ensure your `pom.xml` file includes the necessary dependencies. Here's a basic example:
 
 ```xml
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-    <groupId>com.yourcompany</groupId>
-    <artifactId>MultiApiRequestProject</artifactId>
-    <version>1.0-SNAPSHOT</version>
-
-    <dependencies>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.13.2</version>
-        </dependency>
-    </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
-                <configuration>
-                    <source>11</source>
-                    <target>11</target>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
-</project>
+<dependencies>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-devtools</artifactId>
+        <optional>true</optional>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-configuration-processor</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-webflux</artifactId>
+    </dependency>
+</dependencies>
 ```
 
-### Step 6: Optional - Create Test Class
+### Step 4: Create Application Code
 
-(Optional) Create the `MultiApiRequestTest.java` file in the `src/test/java/com/yourpackage` directory for unit tests:
+1. **Define Application Properties**
 
-#### `MultiApiRequestTest.java`
+   Create an `application.properties` file in `src/main/resources` to store your configuration.
 
-```java
-package com.yourpackage;
+   ```properties
+   # API Configuration
+   idcs.token.url=https://idcs.example.com/token
+   api1.url=https://api.example.com/endpoint1
+   api2.url=https://api.example.com/endpoint2
+   ```
 
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+2. **Create Token Service**
 
-class MultiApiRequestTest {
+   Create a new class `TokenService` in `src/main/java/com/example/myapiapp/service/TokenService.java`.
 
-    @Test
-    void testGetIdcsToken() {
-        // Implement test for getIdcsToken method
-    }
+   ```java
+   package com.example.myapiapp.service;
 
-    @Test
-    void testMakeApiRequest() {
-        // Implement test for makeApiRequest method
-    }
-}
-```
+   import org.springframework.beans.factory.annotation.Value;
+   import org.springframework.stereotype.Service;
+   import org.springframework.web.reactive.function.client.WebClient;
+   import reactor.core.publisher.Mono;
 
-### Step 7: Run Your Application
+   @Service
+   public class TokenService {
 
-1. Open the `MultiApiRequest.java` file.
-2. Right-click and select "Run 'MultiApiRequest.main()'".
-3. IntelliJ will build and run your project, executing the logic to make API requests and save responses to files.
+       @Value("${idcs.token.url}")
+       private String tokenUrl;
 
-This setup and structure will help you manage your project effectively within IntelliJ IDEA.
+       private final WebClient webClient;
+
+       public TokenService(WebClient.Builder webClientBuilder) {
+           this.webClient = webClientBuilder.baseUrl(tokenUrl).build();
+       }
+
+       public Mono<String> getToken() {
+           return webClient.post()
+                           .retrieve()
+                           .bodyToMono(String.class) // Adjust response handling as needed
+                           .map(response -> extractToken(response)); // Implement extractToken method
+       }
+
+       private String extractToken(String response) {
+           // Extract the token from the response
+           return response; // Modify according to response format
+       }
+   }
+   ```
+
+3. **Create API Service**
+
+   Create a new class `ApiService` in `src/main/java/com/example/myapiapp/service/ApiService.java`.
+
+   ```java
+   package com.example.myapiapp.service;
+
+   import org.springframework.beans.factory.annotation.Value;
+   import org.springframework.stereotype.Service;
+   import org.springframework.web.reactive.function.client.WebClient;
+   import reactor.core.publisher.Mono;
+
+   import java.nio.file.Files;
+   import java.nio.file.Path;
+   import java.nio.file.StandardOpenOption;
+
+   @Service
+   public class ApiService {
+
+       @Value("${api1.url}")
+       private String api1Url;
+
+       @Value("${api2.url}")
+       private String api2Url;
+
+       private final TokenService tokenService;
+       private final WebClient webClient;
+
+       public ApiService(TokenService tokenService, WebClient.Builder webClientBuilder) {
+           this.tokenService = tokenService;
+           this.webClient = webClientBuilder.build();
+       }
+
+       public void fetchData() {
+           tokenService.getToken().flatMap(token -> {
+               return Mono.zip(
+                   callApi(api1Url, token, "api1_response.json"),
+                   callApi(api2Url, token, "api2_response.json")
+               );
+           }).block(); // Use block() to make it synchronous for simplicity
+       }
+
+       private Mono<Void> callApi(String apiUrl, String token, String fileName) {
+           return webClient.get()
+                           .uri(apiUrl)
+                           .header("Authorization", "Bearer " + token)
+                           .retrieve()
+                           .bodyToMono(String.class)
+                           .flatMap(response -> saveToFile(response, fileName));
+       }
+
+       private Mono<Void> saveToFile(String response, String fileName) {
+           return Mono.fromRunnable(() -> {
+               try {
+                   Path path = Path.of(fileName);
+                   Files.write(path, response.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+               } catch (Exception e) {
+                   e.printStackTrace(); // Handle the exception appropriately
+               }
+           });
+       }
+   }
+   ```
+
+4. **Create the Main Application Class**
+
+   Update the `Application.java` file in `src/main/java/com/example/myapiapp/Application.java`.
+
+   ```java
+   package com.example.myapiapp;
+
+   import com.example.myapiapp.service.ApiService;
+   import org.springframework.boot.CommandLineRunner;
+   import org.springframework.boot.SpringApplication;
+   import org.springframework.boot.autoconfigure.SpringBootApplication;
+   import org.springframework.context.annotation.Bean;
+
+   @SpringBootApplication
+   public class Application {
+
+       public static void main(String[] args) {
+           SpringApplication.run(Application.class, args);
+       }
+
+       @Bean
+       public CommandLineRunner run(ApiService apiService) {
+           return args -> {
+               apiService.fetchData();
+           };
+       }
+   }
+   ```
+
+### Step 5: Run the Application
+
+1. **Build and Run**
+
+   - Open a terminal in the root directory of your project.
+   - Run the application with Maven:
+
+     ```bash
+     ./mvnw spring-boot:run
+     ```
+
+   - Or build and run the JAR file:
+
+     ```bash
+     ./mvnw clean package
+     java -jar target/myapiapp-0.0.1-SNAPSHOT.jar
+     ```
+
+2. **Verify Output**
+
+   - Check the project directory for files named `api1_response.json` and `api2_response.json` to verify that the responses are being saved correctly.
+
+### Additional Tips
+
+- **Exception Handling**: Improve error handling in the production environment.
+- **Testing**: Write unit tests to ensure your services work as expected.
+- **Configuration**: You can use profiles to manage different configurations for development, testing, and production environments.
+
+This guide should help you set up and run your Spring Boot application. Let me know if you have any questions or run into any issues!
