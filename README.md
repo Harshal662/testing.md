@@ -1,117 +1,41 @@
-Sure! Here is the step-by-step process to create this Java project in IntelliJ IDEA.
+Got it! Let's update the `config.properties` and `MultiApiRequest.java` files to include form parameters and headers for the IDCS token request.
 
-### Step 1: Create a New Project
+### Updated `config.properties`
 
-1. Open IntelliJ IDEA.
-2. Click on "New Project".
-
-### Step 2: Choose Project Type
-
-1. Select "Maven" from the left sidebar.
-2. Click "Next".
-
-### Step 3: Project Configuration
-
-1. Enter your project's GroupId and ArtifactId. For example:
-   - GroupId: `com.yourcompany`
-   - ArtifactId: `MultiApiRequestProject`
-2. Click "Next".
-
-### Step 4: Project Name and Location
-
-1. Enter your project name (e.g., `MultiApiRequestProject`).
-2. Choose the project location.
-3. Click "Finish".
-
-### Step 5: Set Up Project Structure
-
-1. IntelliJ will create a basic Maven project structure. Expand the `src` directory.
-2. Create the following directories:
-
-   ```
-   src
-   ├── main
-   │   ├── java
-   │   │   └── com
-   │   │       └── yourpackage
-   │   │           └── MultiApiRequest.java
-   │   └── resources
-   │       └── config.properties
-   └── test
-       └── java
-           └── com
-               └── yourpackage
-                   └── MultiApiRequestTest.java
-   ```
-
-### Step 6: Add Dependencies to `pom.xml`
-
-Open the `pom.xml` file and ensure it includes the necessary dependencies:
-
-```xml
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://www.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-    <groupId>com.yourcompany</groupId>
-    <artifactId>MultiApiRequestProject</artifactId>
-    <version>1.0-SNAPSHOT</version>
-
-    <dependencies>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.13.2</version>
-        </dependency>
-    </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
-                <configuration>
-                    <source>11</source>
-                    <target>11</target>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
-</project>
-```
-
-### Step 7: Create the `config.properties` File
-
-Create the `config.properties` file in the `src/main/resources` directory with the following content:
+Add entries for the IDCS token form parameters and headers:
 
 ```properties
 # Proxy settings
-proxyHost=your_proxy_host
-proxyPort=your_proxy_port
+proxyHost=ig-proxies.gslb.global
+proxyPort=8080
+proxyUsername=G0134343
+proxyPassword=Sarjerao%1154135
 
 # IDCS Token API
 idcsTokenApiUrl=https://example.com/idcs/token
+idcsTokenFormParameters=param1=value1,param2=value2
+idcsTokenHeaders=header1:value1,header2:value2
 
 # Other APIs
 api1Url=https://example.com/api1
 api1Headers=header1:value1,header2:value2
-api1Payload={"key1": "value1", "key2": "value2"}
+api1Payload={"ABC": {"XYZ": "24379847"}}
 
 api2Url=https://example.com/api2
 api2Headers=header1:value1,header2:value2
-api2Payload={"key1": "value1", "key2": "value2"}
+api2Payload={"ABC": {"XYZ": "24379847"}}
 
 # File paths to store responses
 responseFile1=path_to_store_response1.json
 responseFile2=path_to_store_response2.json
 ```
 
-### Step 8: Create the `MultiApiRequest.java` File
+### Updated `MultiApiRequest.java`
 
-Create the `MultiApiRequest.java` file in the `src/main/java/com/yourpackage` directory with the following content:
+Update the `MultiApiRequest.java` to handle form parameters and headers for the IDCS token request:
 
-```javapackage com.yourpackage;
+```java
+package com.yourpackage;
 
 import java.io.*;
 import java.net.Authenticator;
@@ -122,7 +46,6 @@ import java.net.Proxy;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Base64;
 import java.util.Properties;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -175,6 +98,31 @@ public class MultiApiRequest {
         HttpURLConnection conn = (HttpURLConnection) url.openConnection(proxy);
         conn.setRequestMethod("POST");  // Assuming it's a POST request
         conn.setDoOutput(true);
+
+        // Set IDCS token headers
+        String idcsTokenHeaders = properties.getProperty("idcsTokenHeaders");
+        if (idcsTokenHeaders != null && !idcsTokenHeaders.isEmpty()) {
+            String[] headerPairs = idcsTokenHeaders.split(",");
+            for (String headerPair : headerPairs) {
+                String[] header = headerPair.split(":");
+                conn.setRequestProperty(header[0].trim(), header[1].trim());
+            }
+        }
+
+        // Set IDCS token form parameters
+        String idcsTokenFormParameters = properties.getProperty("idcsTokenFormParameters");
+        if (idcsTokenFormParameters != null && !idcsTokenFormParameters.isEmpty()) {
+            StringBuilder formParams = new StringBuilder();
+            String[] paramPairs = idcsTokenFormParameters.split(",");
+            for (String paramPair : paramPairs) {
+                if (formParams.length() > 0) {
+                    formParams.append("&");
+                }
+                formParams.append(paramPair);
+            }
+            byte[] formDataBytes = formParams.toString().getBytes("UTF-8");
+            conn.getOutputStream().write(formDataBytes);
+        }
 
         if (conn.getResponseCode() == 200) {
             try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
@@ -245,37 +193,10 @@ public class MultiApiRequest {
         Files.write(Paths.get(filePath), content.getBytes());
     }
 }
-
 ```
 
-### Step 9: (Optional) Create Test Class
+### Summary of Changes
+1. **Properties File**: Added `idcsTokenFormParameters` and `idcsTokenHeaders` entries in the `config.properties` file.
+2. **Form Parameters and Headers**: Updated `getIdcsToken` to handle form parameters and headers for the IDCS token request.
 
-(Optional) Create the `MultiApiRequestTest.java` file in the `src/test/java/com/yourpackage` directory for unit tests:
-
-```java
-package com.yourpackage;
-
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
-
-class MultiApiRequestTest {
-
-    @Test
-    void testGetIdcsToken() {
-        // Implement test for getIdcsToken method
-    }
-
-    @Test
-    void testMakeApiRequest() {
-        // Implement test for makeApiRequest method
-    }
-}
-```
-
-### Step 10: Run Your Application
-
-1. Open the `MultiApiRequest.java` file.
-2. Right-click and select "Run 'MultiApiRequest.main()'".
-3. IntelliJ will build and run your project, executing the logic to make API requests and save responses to files.
-
-This detailed step-by-step guide should help you set up and run the project successfully in IntelliJ IDEA.
+This updated code and configuration should now correctly handle the form parameters and headers required for the IDCS token request, while also using the proxy with authentication details.
