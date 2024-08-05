@@ -111,14 +111,18 @@ responseFile2=path_to_store_response2.json
 
 Create the `MultiApiRequest.java` file in the `src/main/java/com/yourpackage` directory with the following content:
 
-```java
-package com.yourpackage;
+```javapackage com.yourpackage;
 
 import java.io.*;
+import java.net.Authenticator;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.PasswordAuthentication;
+import java.net.Proxy;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Base64;
 import java.util.Properties;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -153,12 +157,22 @@ public class MultiApiRequest {
 
     private static String getIdcsToken() throws IOException {
         URL url = new URL(properties.getProperty("idcsTokenApiUrl"));
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        String proxyHost = properties.getProperty("proxyHost");
+        int proxyPort = Integer.parseInt(properties.getProperty("proxyPort"));
+        String proxyUsername = properties.getProperty("proxyUsername");
+        String proxyPassword = properties.getProperty("proxyPassword");
 
-        // Set proxy if needed
-        System.setProperty("http.proxyHost", properties.getProperty("proxyHost"));
-        System.setProperty("http.proxyPort", properties.getProperty("proxyPort"));
+        Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort));
 
+        // Set up proxy authentication
+        Authenticator authenticator = new Authenticator() {
+            public PasswordAuthentication getPasswordAuthentication() {
+                return new PasswordAuthentication(proxyUsername, proxyPassword.toCharArray());
+            }
+        };
+        Authenticator.setDefault(authenticator);
+
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection(proxy);
         conn.setRequestMethod("POST");  // Assuming it's a POST request
         conn.setDoOutput(true);
 
@@ -231,6 +245,7 @@ public class MultiApiRequest {
         Files.write(Paths.get(filePath), content.getBytes());
     }
 }
+
 ```
 
 ### Step 9: (Optional) Create Test Class
