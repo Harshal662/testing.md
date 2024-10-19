@@ -107,4 +107,44 @@ These points show your contributions toward delivering world-class service by fo
 
 
 
-## 
+## Personal Obj
+
+Ans - Here are two personal objectives related to your work on API testing and automating testing processes, along with corresponding measures:
+
+### Objective 1: Enhance Automation Coverage and Testing Efficiency
+**Measures**:
+1. **Increase the Automation Coverage**:
+   - Develop and implement additional automated test cases to achieve 90% or higher coverage for APIs and key UI components.
+   - Regularly review manual testing processes to identify candidates for automation, ensuring continuous improvement in coverage.
+
+2. **Optimize Test Execution Time**:
+   - Implement parallel execution for automated tests to reduce overall testing time by at least 30%.
+   - Refactor test scripts to eliminate redundancies and optimize performance, ensuring faster feedback on test results.
+
+3. **Improve Stability and Reliability of Automated Tests**:
+   - Monitor test execution logs to identify flaky tests and reduce their occurrence by at least 80% through better test design and handling of dependencies.
+   - Conduct regular maintenance of automated scripts to ensure they remain up-to-date with evolving application features.
+
+4. **Facilitate Knowledge Sharing**:
+   - Organize knowledge-sharing sessions or workshops on automation best practices, helping team members improve their automation skills.
+   - Maintain a repository of reusable automated testing components, making it easier for the team to build new test cases efficiently.
+
+### Objective 2: Drive Continuous Improvement in Testing Processes
+**Measures**:
+1. **Implement Continuous Integration/Continuous Deployment (CI/CD) Automation**:
+   - Integrate automated testing into the CI/CD pipeline to enable continuous testing and faster detection of issues.
+   - Achieve a goal of having 100% of automated tests run as part of the CI/CD process for every code deployment.
+
+2. **Identify and Address Testing Bottlenecks**:
+   - Use data and metrics to identify bottlenecks in the current testing processes and implement solutions to improve efficiency by at least 25%.
+   - Conduct regular reviews of test execution metrics to continuously optimize the testing process and adapt to changes in project requirements.
+
+3. **Ensure High-Quality Deliverables through Root-Cause Analysis**:
+   - Conduct root-cause analysis on any issues detected during automated testing, implementing corrective actions to prevent reoccurrence.
+   - Track defect trends and use insights to proactively refine automated tests, ensuring higher quality in future deliverables.
+
+4. **Promote a Culture of Continuous Improvement**:
+   - Regularly solicit feedback from the team on the effectiveness of current automation processes and implement suggested improvements.
+   - Stay updated on the latest advancements in automation tools and techniques, applying them to further refine testing processes.
+
+These objectives and measures are designed to align with your work while pushing for continuous improvement, enhanced quality, and increased efficiency in testing processes.
