@@ -1,21 +1,26 @@
-### What Summary Comments
-Over the past year, I have made significant contributions toward enhancing automation in testing processes, focusing on API testing and automating the testing of UI, API, and other code components. I worked diligently to streamline workflows, increase automation coverage, and reduce manual intervention, resulting in improved efficiency and consistency in our testing efforts.
+### How Summary Comments
 
-Key achievements include:
-- **Automation Coverage**: Increased the automation coverage of API and UI testing, reaching 90% or higher for key functionalities. This helped reduce manual testing time and ensured thorough test coverage across critical features.
-- **Efficiency Improvements**: Optimized automated test execution by implementing parallel testing and refining scripts, which reduced overall testing time by over 30%. This accelerated the feedback loop for development teams, enabling faster delivery cycles.
-- **Collaboration and Knowledge Sharing**: Regularly collaborated with team members to identify automation opportunities and conducted knowledge-sharing sessions on best practices, further enhancing the team's overall capabilities.
-- **Recognition**: I was recognized by senior leadership for my contributions to improving testing quality and efficiency, which underscores the positive impact my work has had on the team and projects.
+Throughout the year, I have demonstrated a commitment to Barclays' Values and Mindset by actively embodying the principles of Respect, Integrity, Service, Excellence, and Stewardship, while embracing the Mindset pillars of Challenge, Drive, and Empower.
 
-These contributions demonstrate a commitment to driving simplicity, efficiency, and continuous improvement in line with company objectives.
+**Mindset Challenge:**
+- I consistently questioned existing processes to identify opportunities for improvement and automation, resulting in significant enhancements in our testing frameworks. For example, I introduced new automated testing strategies that increased coverage and reduced manual testing time by over 30%.
+- By challenging the status quo and being open to alternative viewpoints, I collaborated with team members to explore innovative solutions for testing automation. This approach fostered a culture of curiosity and ambition, leading to more efficient and reliable testing processes.
 
-### Precision Summary Comments
-Throughout the year, I took a proactive approach to managing risks and strengthening controls in our testing processes. My efforts were centered around ensuring accurate and reliable outcomes through automated testing and implementing robust control measures.
+**Mindset Drive:**
+- I took personal responsibility for delivering high-quality automated testing solutions, ensuring that they aligned with project requirements and company standards. I managed risks proactively by implementing automated alerts for test failures, enabling timely resolution of issues.
+- Actively supported transformation by integrating automated testing into the CI/CD pipeline, which helped streamline the development process and ensured continuous quality improvements. This effort contributed to the team's ability to deliver sustainable value to our clients and stakeholders.
+- Collaborated across different teams to gather insights and feedback on testing needs, resulting in automated solutions that better addressed client and customer requirements.
 
-Specific actions included:
-- **Strengthening Controls via Automation**: I developed automated tests that enforce key controls, such as data validation and security checks, ensuring compliance with company policies and industry regulations.
-- **Managing Risks Proactively**: Implemented automated alerts for test failures and monitored test execution closely to detect potential risks early, allowing for quick escalation and mitigation.
-- **Ensuring Accuracy and Reliability**: Maintained the stability of automated tests by addressing flaky tests and conducting regular reviews to keep test scripts up-to-date with changes in application functionalities.
-- **Aligning with Standards and Training**: Ensured that all testing efforts adhered to company standards and best practices, and I actively participated in training sessions to stay current on operational requirements.
+**Mindset Empower:**
+- Promoted a culture of inclusion by sharing automation best practices through knowledge-sharing sessions, encouraging diverse perspectives, and empowering others to contribute to automation initiatives.
+- Celebrated the team's successes when we achieved key automation milestones, while also taking lessons from setbacks to refine and improve testing processes continuously.
 
-These measures have contributed to delivering high-quality, reliable outcomes and ensuring that our processes remain compliant and resilient to potential risks.
+**Values Demonstrated:**
+
+- **Respect**: I valued the contributions of my colleagues by actively listening to their ideas during discussions about automation and testing strategies. This approach helped harness the diverse skills within the team to achieve better outcomes.
+- **Integrity**: Operated with transparency and honesty when addressing issues in automated testing, ensuring that stakeholders were kept informed of any potential risks and corrective actions taken.
+- **Service**: Focused on delivering high-quality automation solutions that met the needs of internal clients and stakeholders. By putting their requirements at the center, I helped ensure reliable and consistent outcomes.
+- **Excellence**: Set high standards for automated testing, driving continuous improvements and championing innovative approaches that enhanced the quality and efficiency of our processes.
+- **Stewardship**: Aligned automation efforts with sustainability goals by streamlining testing processes and reducing manual effort, thus lowering the environmental impact associated with repetitive tasks.
+
+These actions reflect my commitment to Barclays' Mindset and Values, ensuring that my work not only met but exceeded expectations, while contributing to a positive and collaborative workplace culture.
