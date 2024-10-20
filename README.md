@@ -1,26 +1,13 @@
-### How Summary Comments
+### Closing Comments and Development Opportunities
 
-Throughout the year, I have demonstrated a commitment to Barclays' Values and Mindset by actively embodying the principles of Respect, Integrity, Service, Excellence, and Stewardship, while embracing the Mindset pillars of Challenge, Drive, and Empower.
+This year has been a significant period of growth and achievement, marked by meaningful contributions to enhancing testing automation and driving efficiency within our processes. I took ownership of key initiatives, particularly in API testing and automating the testing of UI and other code components, which resulted in increased coverage, reduced manual effort, and faster turnaround times. These efforts not only improved the quality of deliverables but also demonstrated my commitment to aligning with Barclays' strategic priorities.
 
-**Mindset Challenge:**
-- I consistently questioned existing processes to identify opportunities for improvement and automation, resulting in significant enhancements in our testing frameworks. For example, I introduced new automated testing strategies that increased coverage and reduced manual testing time by over 30%.
-- By challenging the status quo and being open to alternative viewpoints, I collaborated with team members to explore innovative solutions for testing automation. This approach fostered a culture of curiosity and ambition, leading to more efficient and reliable testing processes.
+My work was recognized by senior leadership for improving the consistency and accuracy of testing outcomes, which further motivated me to continue challenging the status quo and pursuing continuous improvement. I consistently sought out opportunities to optimize processes, collaborated across teams to share insights, and applied innovative approaches to make a lasting impact. Throughout, I embraced Barclays' Values and Mindset, acting with integrity, championing excellence, and supporting a culture of inclusion and growth.
 
-**Mindset Drive:**
-- I took personal responsibility for delivering high-quality automated testing solutions, ensuring that they aligned with project requirements and company standards. I managed risks proactively by implementing automated alerts for test failures, enabling timely resolution of issues.
-- Actively supported transformation by integrating automated testing into the CI/CD pipeline, which helped streamline the development process and ensured continuous quality improvements. This effort contributed to the team's ability to deliver sustainable value to our clients and stakeholders.
-- Collaborated across different teams to gather insights and feedback on testing needs, resulting in automated solutions that better addressed client and customer requirements.
+**Development Opportunities for the Year Ahead:**
+- **Expand Skills in Advanced Automation Techniques:** I aim to deepen my expertise in advanced automation tools and methodologies, including AI-powered testing and intelligent automation, to further enhance the efficiency and accuracy of our testing processes.
+- **Broaden Knowledge in Risk Management:** I plan to develop a more comprehensive understanding of risk management practices to further strengthen controls within automated testing and align with compliance requirements.
+- **Focus on End-to-End CI/CD Integration:** I will look to expand the scope of automated testing within the CI/CD pipeline, aiming for seamless integration and further reducing manual intervention across all stages of the development lifecycle.
+- **Leadership and Mentorship:** I would like to take on more leadership roles, such as mentoring colleagues on automation practices and contributing to strategic discussions about optimizing testing processes at a higher level.
 
-**Mindset Empower:**
-- Promoted a culture of inclusion by sharing automation best practices through knowledge-sharing sessions, encouraging diverse perspectives, and empowering others to contribute to automation initiatives.
-- Celebrated the team's successes when we achieved key automation milestones, while also taking lessons from setbacks to refine and improve testing processes continuously.
-
-**Values Demonstrated:**
-
-- **Respect**: I valued the contributions of my colleagues by actively listening to their ideas during discussions about automation and testing strategies. This approach helped harness the diverse skills within the team to achieve better outcomes.
-- **Integrity**: Operated with transparency and honesty when addressing issues in automated testing, ensuring that stakeholders were kept informed of any potential risks and corrective actions taken.
-- **Service**: Focused on delivering high-quality automation solutions that met the needs of internal clients and stakeholders. By putting their requirements at the center, I helped ensure reliable and consistent outcomes.
-- **Excellence**: Set high standards for automated testing, driving continuous improvements and championing innovative approaches that enhanced the quality and efficiency of our processes.
-- **Stewardship**: Aligned automation efforts with sustainability goals by streamlining testing processes and reducing manual effort, thus lowering the environmental impact associated with repetitive tasks.
-
-These actions reflect my commitment to Barclays' Mindset and Values, ensuring that my work not only met but exceeded expectations, while contributing to a positive and collaborative workplace culture.
+Overall, I am committed to building on this year's achievements and taking advantage of development opportunities to continue delivering high-quality outcomes while driving innovation and excellence within my role.
