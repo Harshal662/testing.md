@@ -1,10 +1,3 @@
-The error you're encountering (`expected 2 args but received 1`) happens because `Types.primitive()` expects both a **primitive type** and an **original type**. It seems I missed a key point about how to correctly specify the primitive and original types.
-
-Here’s the correct approach:
-
-### **Corrected Code** (with proper usage of `Types.primitive()`):
-
-```java
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.example.data.simple.SimpleGroupFactory;
 import org.apache.parquet.hadoop.ParquetWriter;
@@ -69,19 +62,8 @@ public class ConvertExcelToParquet {
 
             Sheet sheet = workbook.getSheetAt(0); // Convert only the first sheet
 
-            // Define a Parquet schema
-            MessageType schema = Types.buildMessage()
-                    .required(Types.primitive(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY)
-                            .as(org.apache.parquet.schema.OriginalType.UTF8) // Specify UTF8 as the original type
-                            .named("Column1"))
-                    .optional(Types.primitive(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY)
-                            .as(org.apache.parquet.schema.OriginalType.UTF8)
-                            .named("Column2"))
-                    .optional(Types.primitive(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY)
-                            .as(org.apache.parquet.schema.OriginalType.UTF8)
-                            .named("Column3"))
-                    .named("ExcelData");
-
+            // Generate the schema dynamically based on the number of columns in the Excel sheet
+            MessageType schema = generateSchema(sheet.getRow(0)); // Get the schema from the first row (header)
             SimpleGroupFactory groupFactory = new SimpleGroupFactory(schema);
 
             try (ParquetWriter<Group> writer = ExampleParquetWriter.builder(new org.apache.hadoop.fs.Path(outputFilePath))
@@ -89,12 +71,16 @@ public class ConvertExcelToParquet {
                     .build()) {
 
                 for (Row row : sheet) {
+                    if (row.getRowNum() == 0) continue; // Skip the header row
                     Group group = groupFactory.newGroup();
+
+                    // Iterate over all columns in the row
                     for (int i = 0; i < row.getLastCellNum(); i++) {
                         Cell cell = row.getCell(i);
                         String value = (cell == null) ? "" : getCellValue(cell);
-                        group.add("Column" + (i + 1), value);
+                        group.add("Column" + (i + 1), value); // Add value to the group
                     }
+
                     writer.write(group);
                 }
             }
@@ -102,6 +88,21 @@ public class ConvertExcelToParquet {
         } catch (Exception e) {
             System.err.println("Error converting " + excelFile.getName() + ": " + e.getMessage());
         }
+    }
+
+    // Method to generate the Parquet schema based on the number of columns in the first row (header)
+    private static MessageType generateSchema(Row headerRow) {
+        Types.MessageTypeBuilder schemaBuilder = Types.buildMessage();
+
+        // Loop through the columns and create a field for each one in the schema
+        for (int i = 0; i < headerRow.getLastCellNum(); i++) {
+            // For this example, all columns are treated as OPTIONAL strings (BINARY)
+            schemaBuilder.optional(Types.primitive(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY, Types.Repetition.OPTIONAL)
+                    .as(org.apache.parquet.schema.OriginalType.UTF8)
+                    .named("Column" + (i + 1))); // Naming columns as "Column1", "Column2", etc.
+        }
+
+        return schemaBuilder.named("ExcelData");
     }
 
     // Utility method to get cell value as a string
@@ -126,21 +127,3 @@ public class ConvertExcelToParquet {
         }
     }
 }
-```
-
-### **Key Changes**:
-- **`Types.primitive()`** now accepts both the **primitive type** (e.g., `BINARY`) and **original type** (e.g., `UTF8`).
-- The issue was that the method call was incorrectly passing one argument. The correct usage is:
-    ```java
-    Types.primitive(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY)
-        .as(org.apache.parquet.schema.OriginalType.UTF8)
-        .named("Column1")
-    ```
-
-### **Explanation**:
-- `Types.primitive(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY)` specifies the **type** of the data.
-- `.as(org.apache.parquet.schema.OriginalType.UTF8)` specifies the **original type** (e.g., `UTF8` for string data).
-- `.named("Column1")` specifies the **name** of the column in the schema.
-
-### **Let me know**:
-If you continue to see errors, we can debug further, but this corrected version should resolve the compile-time exception you're facing.
