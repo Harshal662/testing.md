@@ -1,3 +1,14 @@
+If your Excel file contains 60 columns, you can dynamically generate the schema to handle all 60 columns and convert it into a Parquet file. Instead of manually defining each column, you can loop through the columns of the Excel sheet and create the corresponding Parquet schema for each one.
+
+### Here’s how you can modify the code to handle an Excel file with 60 columns dynamically:
+
+1. **Determine the number of columns in the Excel sheet**.
+2. **Generate a dynamic schema for all the columns**.
+3. **Write the data into the Parquet file using the dynamically generated schema**.
+
+### Updated Code for Handling 60 Columns:
+
+```java
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.example.data.simple.SimpleGroupFactory;
 import org.apache.parquet.hadoop.ParquetWriter;
@@ -127,3 +138,26 @@ public class ConvertExcelToParquet {
         }
     }
 }
+```
+
+### Explanation of Changes:
+
+1. **Dynamic Schema Generation (`generateSchema`)**:
+   - The `generateSchema` method creates a Parquet schema based on the columns in the first row of the Excel sheet (which is assumed to be the header row).
+   - It loops through each column in the header row and creates a corresponding schema field, assuming all columns are of type `BINARY` (for UTF-8 text) and are **optional**.
+
+2. **Handling Multiple Columns**:
+   - The code can now handle any number of columns in the Excel sheet. It dynamically adapts based on the header row (the first row) of the Excel sheet.
+   - The columns are named as `"Column1"`, `"Column2"`, etc., and all columns are treated as `OPTIONAL` strings (`UTF8`).
+
+3. **Skipping the Header Row**:
+   - The first row (the header) is skipped during data writing (`if (row.getRowNum() == 0) continue;`).
+
+### Example for Excel with 60 Columns:
+
+For an Excel sheet with 60 columns, the generated Parquet schema will have 60 fields, each named `"Column1"`, `"Column2"`, ..., `"Column60"`. The schema will treat all fields as optional strings (`BINARY` with `UTF8`).
+
+This approach will allow you to handle Excel files with a variable number of columns (up to 60 or more) without having to manually define each column in the schema.
+
+### Conclusion:
+This code dynamically generates a schema based on the header row in your Excel file, making it scalable for any number of columns (including 60). It then converts the data into Parquet format, storing it with the defined schema.
