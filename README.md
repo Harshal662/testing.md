@@ -1,23 +1,27 @@
-Here's an example of a Java program to **read multiple Excel files**, where you can later modify it to perform specific operations on the data. This code uses **Apache POI** to read `.xlsx` files.
+Below is the edited code to convert **all Excel files** in a specified directory to either **CSV** or **Parquet** files. The program iterates through each `.xlsx` file in the directory, processes them, and generates corresponding output files.
 
 ---
 
-### **Code to Read Multiple Excel Files**
-
+### **Convert All Excel Files in a Directory to CSV**
+#### **Code**
 ```java
 import org.apache.poi.ss.usermodel.*;
+
 import java.io.*;
 import java.nio.file.*;
-import java.util.*;
+import java.util.List;
 
-public class ReadMultipleExcelFiles {
+public class ConvertExcelToCSV {
 
     public static void main(String[] args) {
-        // Directory containing Excel files
-        String excelDirectoryPath = "excel_files"; // Replace with the path to your Excel files directory
+        String excelDirectoryPath = "excel_files"; // Directory containing Excel files
+        String outputDirectoryPath = "output_csv"; // Directory to store CSV files
 
         try {
-            // Get a list of all .xlsx files in the directory
+            // Ensure the output directory exists
+            Files.createDirectories(Paths.get(outputDirectoryPath));
+
+            // Get all .xlsx files from the input directory
             List<File> excelFiles = getExcelFiles(excelDirectoryPath);
 
             if (excelFiles.isEmpty()) {
@@ -25,51 +29,180 @@ public class ReadMultipleExcelFiles {
                 return;
             }
 
-            // Read and process each Excel file
+            // Convert each Excel file to CSV
             for (File excelFile : excelFiles) {
                 System.out.println("Processing file: " + excelFile.getName());
-                processExcelFile(excelFile);
-                System.out.println("----------------------------------");
+                String csvFileName = excelFile.getName().replace(".xlsx", ".csv");
+                String outputFilePath = Paths.get(outputDirectoryPath, csvFileName).toString();
+                convertToCSV(excelFile, outputFilePath);
+                System.out.println("Converted to CSV: " + outputFilePath);
             }
         } catch (IOException e) {
-            System.err.println("Error reading Excel files: " + e.getMessage());
+            System.err.println("Error during conversion: " + e.getMessage());
         }
     }
 
     // Method to get all .xlsx files from a directory
     private static List<File> getExcelFiles(String directoryPath) throws IOException {
-        List<File> excelFiles = new ArrayList<>();
-        Files.walk(Paths.get(directoryPath))
+        return Files.walk(Paths.get(directoryPath))
                 .filter(Files::isRegularFile)
                 .filter(path -> path.toString().endsWith(".xlsx"))
-                .forEach(path -> excelFiles.add(path.toFile()));
-        return excelFiles;
+                .map(Path::toFile)
+                .toList();
     }
 
-    // Method to read and process an Excel file
-    private static void processExcelFile(File excelFile) {
+    // Method to convert an Excel file to CSV
+    private static void convertToCSV(File excelFile, String outputFilePath) {
         try (FileInputStream fis = new FileInputStream(excelFile);
-             Workbook workbook = WorkbookFactory.create(fis)) {
+             Workbook workbook = WorkbookFactory.create(fis);
+             PrintWriter writer = new PrintWriter(new FileWriter(outputFilePath))) {
 
-            // Iterate through each sheet in the workbook
-            for (Sheet sheet : workbook) {
-                System.out.println("Reading sheet: " + sheet.getSheetName());
+            Sheet sheet = workbook.getSheetAt(0); // Convert only the first sheet
+            for (Row row : sheet) {
+                StringBuilder rowString = new StringBuilder();
 
-                // Iterate through each row
-                for (Row row : sheet) {
-                    // Read and print all cell values in the row
-                    for (Cell cell : row) {
-                        System.out.print(getCellValue(cell) + "\t");
-                    }
-                    System.out.println();
+                for (Cell cell : row) {
+                    String cellValue = getCellValue(cell);
+                    rowString.append(cellValue).append(","); // Separate values by commas
                 }
+
+                // Remove trailing comma and write the line
+                if (rowString.length() > 0) {
+                    rowString.setLength(rowString.length() - 1);
+                }
+                writer.println(rowString.toString());
             }
+
         } catch (Exception e) {
-            System.err.println("Error processing file " + excelFile.getName() + ": " + e.getMessage());
+            System.err.println("Error converting " + excelFile.getName() + ": " + e.getMessage());
         }
     }
 
-    // Utility method to get cell value as a String
+    // Utility method to get cell value as a string
+    private static String getCellValue(Cell cell) {
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue();
+            case NUMERIC:
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getDateCellValue().toString();
+                } else {
+                    return String.valueOf(cell.getNumericCellValue());
+                }
+            case BOOLEAN:
+                return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA:
+                return cell.getCellFormula();
+            case BLANK:
+                return "";
+            default:
+                return "UNKNOWN";
+        }
+    }
+}
+```
+
+---
+
+### **Convert All Excel Files in a Directory to Parquet**
+#### **Code**
+```java
+import org.apache.poi.ss.usermodel.*;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.SimpleGroupFactory;
+import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.example.ExampleParquetWriter;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.Types;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.nio.file.*;
+import java.util.List;
+
+public class ConvertExcelToParquet {
+
+    public static void main(String[] args) {
+        String excelDirectoryPath = "excel_files"; // Directory containing Excel files
+        String outputDirectoryPath = "output_parquet"; // Directory to store Parquet files
+
+        try {
+            // Ensure the output directory exists
+            Files.createDirectories(Paths.get(outputDirectoryPath));
+
+            // Get all .xlsx files from the input directory
+            List<File> excelFiles = getExcelFiles(excelDirectoryPath);
+
+            if (excelFiles.isEmpty()) {
+                System.out.println("No Excel files found in the directory.");
+                return;
+            }
+
+            // Convert each Excel file to Parquet
+            for (File excelFile : excelFiles) {
+                System.out.println("Processing file: " + excelFile.getName());
+                String parquetFileName = excelFile.getName().replace(".xlsx", ".parquet");
+                String outputFilePath = Paths.get(outputDirectoryPath, parquetFileName).toString();
+                convertToParquet(excelFile, outputFilePath);
+                System.out.println("Converted to Parquet: " + outputFilePath);
+            }
+        } catch (Exception e) {
+            System.err.println("Error during conversion: " + e.getMessage());
+        }
+    }
+
+    // Method to get all .xlsx files from a directory
+    private static List<File> getExcelFiles(String directoryPath) throws IOException {
+        return Files.walk(Paths.get(directoryPath))
+                .filter(Files::isRegularFile)
+                .filter(path -> path.toString().endsWith(".xlsx"))
+                .map(Path::toFile)
+                .toList();
+    }
+
+    // Method to convert an Excel file to Parquet
+    private static void convertToParquet(File excelFile, String outputFilePath) {
+        try (FileInputStream fis = new FileInputStream(excelFile);
+             Workbook workbook = WorkbookFactory.create(fis)) {
+
+            Sheet sheet = workbook.getSheetAt(0); // Convert only the first sheet
+
+            // Define a Parquet schema
+            MessageType schema = Types.buildMessage()
+                    .required(Types.primitive(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY)
+                            .as(org.apache.parquet.schema.OriginalType.UTF8)
+                            .named("Column1"))
+                    .optional(Types.primitive(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY)
+                            .as(org.apache.parquet.schema.OriginalType.UTF8)
+                            .named("Column2"))
+                    .optional(Types.primitive(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY)
+                            .as(org.apache.parquet.schema.OriginalType.UTF8)
+                            .named("Column3"))
+                    .named("ExcelData");
+
+            SimpleGroupFactory groupFactory = new SimpleGroupFactory(schema);
+
+            try (ParquetWriter<Group> writer = ExampleParquetWriter.builder(new org.apache.hadoop.fs.Path(outputFilePath))
+                    .withSchema(schema)
+                    .build()) {
+
+                for (Row row : sheet) {
+                    Group group = groupFactory.newGroup();
+                    for (int i = 0; i < row.getLastCellNum(); i++) {
+                        Cell cell = row.getCell(i);
+                        String value = (cell == null) ? "" : getCellValue(cell);
+                        group.add("Column" + (i + 1), value);
+                    }
+                    writer.write(group);
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("Error converting " + excelFile.getName() + ": " + e.getMessage());
+        }
+    }
+
+    // Utility method to get cell value as a string
     private static String getCellValue(Cell cell) {
         switch (cell.getCellType()) {
             case STRING:
@@ -96,67 +229,32 @@ public class ReadMultipleExcelFiles {
 ---
 
 ### **How It Works**
-1. **Directory Scan**: 
-   - The program scans the specified directory (`excelDirectoryPath`) for `.xlsx` files using `Files.walk`.
-2. **Read Excel Files**:
-   - For each Excel file, the program uses Apache POI to open the file and read its contents.
-3. **Iterate Through Sheets and Rows**:
-   - The code iterates through each sheet, row, and cell, printing the cell values to the console.
-4. **Utility Method**:
-   - The `getCellValue` method ensures proper handling of different cell types (e.g., strings, numbers, dates).
+1. **Directory Handling**:
+   - The program scans the directory for `.xlsx` files.
+   - It ensures the output directory exists.
+
+2. **File Conversion**:
+   - Converts each `.xlsx` file to CSV or Parquet using the appropriate logic.
+
+3. **Output Files**:
+   - The output files are named the same as the input Excel files but with `.csv` or `.parquet` extensions.
 
 ---
 
-### **Output**
-For each Excel file, the program:
-- Prints the name of the file.
-- Prints the name of each sheet.
-- Displays all rows and cells in a tab-separated format.
-
----
-
-### **Directory Structure Example**
+### **Directory Structure**
 ```
 project_directory/
-│
-├── excel_files/       # Directory containing Excel files
+├── excel_files/          # Input directory
 │   ├── file1.xlsx
 │   ├── file2.xlsx
-│   ├── file3.xlsx
 │
-├── src/               # Java source code
-│   └── ReadMultipleExcelFiles.java
+├── output_csv/           # CSV output directory
+│   ├── file1.csv
+│   ├── file2.csv
+│
+├── output_parquet/       # Parquet output directory
+│   ├── file1.parquet
+│   ├── file2.parquet
 ```
 
----
-
-### **How to Add Operations**
-To perform operations on the data:
-- Modify the `processExcelFile` method.
-- Add logic to filter, aggregate, or manipulate data as needed.
-- You can store the data in a collection (e.g., `List`, `Map`) for further processing.
-
----
-
-### **Dependencies**
-Make sure you have the **Apache POI** dependencies in your `pom.xml`:
-
-```xml
-<dependencies>
-    <!-- Apache POI -->
-    <dependency>
-        <groupId>org.apache.poi</groupId>
-        <artifactId>poi</artifactId>
-        <version>5.2.3</version>
-    </dependency>
-    <dependency>
-        <groupId>org.apache.poi</groupId>
-        <artifactId>poi-ooxml</artifactId>
-        <version>5.2.3</version>
-    </dependency>
-</dependencies>
-```
-
----
-
-Let me know what specific operations you’d like to perform on the Excel data, and I can help you implement them! 😊
+Let me know if you need help with further customizations! 😊
