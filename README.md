@@ -16,6 +16,14 @@ public class PipeSeparatedToExcel {
             // Read all lines from the .dat file
             List<String> lines = Files.readAllLines(Paths.get(inputFilePath));
 
+            // Remove the first and last lines
+            if (lines.size() > 2) { // Ensure there are enough lines to process
+                lines = lines.subList(1, lines.size() - 1);
+            } else {
+                System.err.println("The file has insufficient lines to process after removing first and last.");
+                return;
+            }
+
             // Create a new workbook and sheet
             Workbook workbook = new XSSFWorkbook();
             Sheet sheet = workbook.createSheet("Sheet1");
