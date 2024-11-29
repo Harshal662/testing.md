@@ -1,34 +1,11 @@
-Here’s the updated code with **SLF4J logging** integrated. Logs are configured to display error messages on the terminal, along with appropriate log levels for better monitoring.
+The error occurs because the `ExampleParquetWriter` class is not directly included in the `parquet-avro` library you imported. Instead, you need to write Parquet files using the `ParquetWriter` class with proper configurations. Below is the corrected code.
 
-### Maven Dependency for SLF4J and Logging Framework
-
-Add the following dependencies for SLF4J and a logging backend such as **Logback** in your `pom.xml`:
-
-```xml
-<dependencies>
-    <!-- SLF4J API -->
-    <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
-        <version>2.0.9</version>
-    </dependency>
-
-    <!-- Logback Classic for SLF4J implementation -->
-    <dependency>
-        <groupId>ch.qos.logback</groupId>
-        <artifactId>logback-classic</artifactId>
-        <version>1.4.11</version>
-    </dependency>
-</dependencies>
-```
-
-### Updated Java Code with SLF4J
+### Corrected Code
 
 ```java
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.apache.parquet.schema.Types;
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.example.data.simple.SimpleGroup;
@@ -72,7 +49,7 @@ public class ExcelToParquet {
         Types.MessageTypeBuilder builder = Types.buildMessage();
         for (Cell cell : headerRow) {
             String columnName = cell.getStringCellValue();
-            builder = builder.optional(PrimitiveTypeName.BINARY).named(columnName);
+            builder = builder.optional(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY).named(columnName);
         }
         logger.info("Parquet schema generated with {} columns.", headerRow.getLastCellNum());
         return builder.named("ExcelSchema");
@@ -80,11 +57,12 @@ public class ExcelToParquet {
 
     private static void writeParquet(Sheet sheet, MessageType schema, String parquetFilePath) throws IOException {
         GroupWriteSupport.setSchema(schema, new org.apache.hadoop.conf.Configuration());
-        try (ParquetWriter<Group> writer = ExampleParquetWriter.builder(new org.apache.hadoop.fs.Path(parquetFilePath))
-                .withType(schema)
-                .withCompressionCodec(CompressionCodecName.SNAPPY)
-                .withWriteMode(org.apache.parquet.hadoop.ParquetFileWriter.Mode.OVERWRITE)
-                .build()) {
+        try (ParquetWriter<Group> writer = new ParquetWriter<>(
+                new org.apache.hadoop.fs.Path(parquetFilePath),
+                new GroupWriteSupport(),
+                CompressionCodecName.SNAPPY,
+                ParquetWriter.DEFAULT_BLOCK_SIZE,
+                ParquetWriter.DEFAULT_PAGE_SIZE)) {
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) { // Start from the second row
                 Row row = sheet.getRow(i);
@@ -105,31 +83,59 @@ public class ExcelToParquet {
 }
 ```
 
-### Log Levels and Output Behavior
+### Changes Made
+1. **Replaced `ExampleParquetWriter`**:
+   - Replaced it with a manual configuration of `ParquetWriter` using `GroupWriteSupport`.
 
-1. **INFO**: Provides status updates for each major step in the process, such as reading files, generating schemas, and writing Parquet files.
-2. **ERROR**: Captures any exceptions and logs a detailed message with the exception stack trace.
-3. **System.err**: Explicitly prints errors to the terminal for visibility.
+2. **Schema Setup**:
+   - Used `GroupWriteSupport.setSchema(schema, Configuration)` to set up the schema for ParquetWriter.
 
-### Logging Output Example
+3. **ParquetWriter Initialization**:
+   - Properly initialized `ParquetWriter` with parameters for compression, block size, and page size.
 
-**On Success:**
+### Ensure Proper Maven Dependencies
+Ensure your `pom.xml` includes these dependencies:
+
+```xml
+<dependencies>
+    <!-- Apache POI -->
+    <dependency>
+        <groupId>org.apache.poi</groupId>
+        <artifactId>poi</artifactId>
+        <version>5.2.3</version>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.poi</groupId>
+        <artifactId>poi-ooxml</artifactId>
+        <version>5.2.3</version>
+    </dependency>
+
+    <!-- Apache Parquet -->
+    <dependency>
+        <groupId>org.apache.parquet</groupId>
+        <artifactId>parquet-avro</artifactId>
+        <version>1.13.0</version>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-common</artifactId>
+        <version>3.3.6</version>
+    </dependency>
+
+    <!-- SLF4J with Logback -->
+    <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>2.0.9</version>
+    </dependency>
+    <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-classic</artifactId>
+        <version>1.4.11</version>
+    </dependency>
+</dependencies>
 ```
-INFO  [main] ExcelToParquet - Reading Excel file: input.xlsx
-INFO  [main] ExcelToParquet - Generating Parquet schema...
-INFO  [main] ExcelToParquet - Parquet schema generated with 3 columns.
-INFO  [main] ExcelToParquet - Writing Parquet file: output.parquet
-INFO  [main] ExcelToParquet - Parquet file writing completed.
-INFO  [main] ExcelToParquet - Conversion completed successfully. Parquet file saved at: output.parquet
-```
 
-**On Error:**
-```
-ERROR [main] ExcelToParquet - Error processing the files: input.xlsx (No such file or directory)
-java.io.FileNotFoundException: input.xlsx (No such file or directory)
-Error: input.xlsx (No such file or directory)
-```
-
-### Advantages of SLF4J with Logback
-- **Flexibility**: Allows switching logging frameworks if needed without code changes.
-- **Granular Control**: Enables detailed configuration of log levels and outputs via `logback.xml`.
+### Output
+- Logs will be displayed on the terminal with appropriate log levels (`INFO`, `ERROR`).
+- Errors will also print to `System.err` for visibility.
