@@ -1,163 +1,117 @@
-If your Excel file contains 60 columns, you can dynamically generate the schema to handle all 60 columns and convert it into a Parquet file. Instead of manually defining each column, you can loop through the columns of the Excel sheet and create the corresponding Parquet schema for each one.
+Here’s a Java Maven project code to convert an Excel file to Parquet format. This implementation uses the **Apache POI** library to read Excel files and **Apache Parquet** library to write Parquet files.
 
-### Here’s how you can modify the code to handle an Excel file with 60 columns dynamically:
+### Maven Dependencies
 
-1. **Determine the number of columns in the Excel sheet**.
-2. **Generate a dynamic schema for all the columns**.
-3. **Write the data into the Parquet file using the dynamically generated schema**.
+Add the following dependencies to your `pom.xml`:
 
-### Updated Code for Handling 60 Columns:
+```xml
+<dependencies>
+    <!-- Apache POI for reading Excel files -->
+    <dependency>
+        <groupId>org.apache.poi</groupId>
+        <artifactId>poi</artifactId>
+        <version>5.2.3</version>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.poi</groupId>
+        <artifactId>poi-ooxml</artifactId>
+        <version>5.2.3</version>
+    </dependency>
+    
+    <!-- Parquet Writer -->
+    <dependency>
+        <groupId>org.apache.parquet</groupId>
+        <artifactId>parquet-avro</artifactId>
+        <version>1.13.0</version>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-common</artifactId>
+        <version>3.3.6</version>
+    </dependency>
+</dependencies>
+```
+
+### Java Code
 
 ```java
-import org.apache.parquet.example.data.Group;
-import org.apache.parquet.example.data.simple.SimpleGroupFactory;
 import org.apache.parquet.hadoop.ParquetWriter;
-import org.apache.parquet.hadoop.example.ExampleParquetWriter;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.MessageTypeParser;
+import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.apache.parquet.schema.Types;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.SimpleGroup;
+import org.apache.parquet.hadoop.example.GroupWriteSupport;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
 
-public class ConvertExcelToParquet {
-
+public class ExcelToParquet {
     public static void main(String[] args) {
-        String excelDirectoryPath = "excel_files"; // Directory containing Excel files
-        String outputDirectoryPath = "output_parquet"; // Directory to store Parquet files
+        String excelFilePath = "input.xlsx";
+        String parquetFilePath = "output.parquet";
 
-        try {
-            // Ensure the output directory exists
-            Files.createDirectories(Paths.get(outputDirectoryPath));
-
-            // Get all .xlsx files from the input directory
-            List<File> excelFiles = getExcelFiles(excelDirectoryPath);
-
-            if (excelFiles.isEmpty()) {
-                System.out.println("No Excel files found in the directory.");
-                return;
-            }
-
-            // Convert each Excel file to Parquet
-            for (File excelFile : excelFiles) {
-                System.out.println("Processing file: " + excelFile.getName());
-                String parquetFileName = excelFile.getName().replace(".xlsx", ".parquet");
-                String outputFilePath = Paths.get(outputDirectoryPath, parquetFileName).toString();
-                convertToParquet(excelFile, outputFilePath);
-                System.out.println("Converted to Parquet: " + outputFilePath);
-            }
-        } catch (Exception e) {
-            System.err.println("Error during conversion: " + e.getMessage());
+        try (FileInputStream fileInputStream = new FileInputStream(new File(excelFilePath))) {
+            Workbook workbook = WorkbookFactory.create(fileInputStream);
+            Sheet sheet = workbook.getSheetAt(0); // Read the first sheet
+            
+            MessageType schema = generateParquetSchema(sheet);
+            writeParquet(sheet, schema, parquetFilePath);
+            
+            System.out.println("Conversion completed: " + parquetFilePath);
+        } catch (IOException e) {
+            System.err.println("Error processing the files: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-    // Method to get all .xlsx files from a directory
-    private static List<File> getExcelFiles(String directoryPath) throws IOException {
-        return Files.walk(Paths.get(directoryPath))
-                .filter(Files::isRegularFile)
-                .filter(path -> path.toString().endsWith(".xlsx"))
-                .map(Path::toFile)
-                .toList();
+    private static MessageType generateParquetSchema(Sheet sheet) {
+        Row headerRow = sheet.getRow(0); // Assume the first row as header
+        Types.MessageTypeBuilder builder = Types.buildMessage();
+        for (Cell cell : headerRow) {
+            String columnName = cell.getStringCellValue();
+            builder = builder.optional(PrimitiveTypeName.BINARY).named(columnName);
+        }
+        return builder.named("ExcelSchema");
     }
 
-    // Method to convert an Excel file to Parquet
-    private static void convertToParquet(File excelFile, String outputFilePath) throws IOException, InvalidFormatException {
-        try (FileInputStream fis = new FileInputStream(excelFile);
-             Workbook workbook = WorkbookFactory.create(fis)) {
+    private static void writeParquet(Sheet sheet, MessageType schema, String parquetFilePath) throws IOException {
+        GroupWriteSupport.setSchema(schema, new org.apache.hadoop.conf.Configuration());
+        try (ParquetWriter<Group> writer = ExampleParquetWriter.builder(new org.apache.hadoop.fs.Path(parquetFilePath))
+                .withType(schema)
+                .withCompressionCodec(CompressionCodecName.SNAPPY)
+                .withWriteMode(org.apache.parquet.hadoop.ParquetFileWriter.Mode.OVERWRITE)
+                .build()) {
 
-            Sheet sheet = workbook.getSheetAt(0); // Convert only the first sheet
-
-            // Generate the schema dynamically based on the number of columns in the Excel sheet
-            MessageType schema = generateSchema(sheet.getRow(0)); // Get the schema from the first row (header)
-            SimpleGroupFactory groupFactory = new SimpleGroupFactory(schema);
-
-            try (ParquetWriter<Group> writer = ExampleParquetWriter.builder(new org.apache.hadoop.fs.Path(outputFilePath))
-                    .withSchema(schema)
-                    .build()) {
-
-                for (Row row : sheet) {
-                    if (row.getRowNum() == 0) continue; // Skip the header row
-                    Group group = groupFactory.newGroup();
-
-                    // Iterate over all columns in the row
-                    for (int i = 0; i < row.getLastCellNum(); i++) {
-                        Cell cell = row.getCell(i);
-                        String value = (cell == null) ? "" : getCellValue(cell);
-                        group.add("Column" + (i + 1), value); // Add value to the group
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) { // Start from the second row
+                Row row = sheet.getRow(i);
+                Group group = new SimpleGroup(schema);
+                for (int j = 0; j < row.getLastCellNum(); j++) {
+                    Cell cell = row.getCell(j);
+                    if (cell != null) {
+                        group.add(j, cell.toString());
+                    } else {
+                        group.add(j, ""); // Add empty string for null cells
                     }
-
-                    writer.write(group);
                 }
+                writer.write(group);
             }
-
-        } catch (Exception e) {
-            System.err.println("Error converting " + excelFile.getName() + ": " + e.getMessage());
-        }
-    }
-
-    // Method to generate the Parquet schema based on the number of columns in the first row (header)
-    private static MessageType generateSchema(Row headerRow) {
-        Types.MessageTypeBuilder schemaBuilder = Types.buildMessage();
-
-        // Loop through the columns and create a field for each one in the schema
-        for (int i = 0; i < headerRow.getLastCellNum(); i++) {
-            // For this example, all columns are treated as OPTIONAL strings (BINARY)
-            schemaBuilder.optional(Types.primitive(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY, Types.Repetition.OPTIONAL)
-                    .as(org.apache.parquet.schema.OriginalType.UTF8)
-                    .named("Column" + (i + 1))); // Naming columns as "Column1", "Column2", etc.
-        }
-
-        return schemaBuilder.named("ExcelData");
-    }
-
-    // Utility method to get cell value as a string
-    private static String getCellValue(Cell cell) {
-        switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
-            case NUMERIC:
-                if (DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getDateCellValue().toString();
-                } else {
-                    return String.valueOf(cell.getNumericCellValue());
-                }
-            case BOOLEAN:
-                return String.valueOf(cell.getBooleanCellValue());
-            case FORMULA:
-                return cell.getCellFormula();
-            case BLANK:
-                return "";
-            default:
-                return "UNKNOWN";
         }
     }
 }
 ```
 
-### Explanation of Changes:
+### Key Points:
+1. **Excel Reading**: The `Apache POI` library reads Excel files, including `.xlsx` and `.xls` formats.
+2. **Parquet Writing**: The `Apache Parquet` library handles schema and file generation. Here, a simple binary schema is created for all columns.
+3. **Compression**: Parquet files are compressed using Snappy for efficiency.
 
-1. **Dynamic Schema Generation (`generateSchema`)**:
-   - The `generateSchema` method creates a Parquet schema based on the columns in the first row of the Excel sheet (which is assumed to be the header row).
-   - It loops through each column in the header row and creates a corresponding schema field, assuming all columns are of type `BINARY` (for UTF-8 text) and are **optional**.
+### Steps to Execute:
+1. Save your Excel file as `input.xlsx` in the project directory.
+2. Run the code, and the output Parquet file `output.parquet` will be generated.
 
-2. **Handling Multiple Columns**:
-   - The code can now handle any number of columns in the Excel sheet. It dynamically adapts based on the header row (the first row) of the Excel sheet.
-   - The columns are named as `"Column1"`, `"Column2"`, etc., and all columns are treated as `OPTIONAL` strings (`UTF8`).
-
-3. **Skipping the Header Row**:
-   - The first row (the header) is skipped during data writing (`if (row.getRowNum() == 0) continue;`).
-
-### Example for Excel with 60 Columns:
-
-For an Excel sheet with 60 columns, the generated Parquet schema will have 60 fields, each named `"Column1"`, `"Column2"`, ..., `"Column60"`. The schema will treat all fields as optional strings (`BINARY` with `UTF8`).
-
-This approach will allow you to handle Excel files with a variable number of columns (up to 60 or more) without having to manually define each column in the schema.
-
-### Conclusion:
-This code dynamically generates a schema based on the header row in your Excel file, making it scalable for any number of columns (including 60). It then converts the data into Parquet format, storing it with the defined schema.
+This code assumes that the Excel file's first row contains headers, and the rest contains data. Modify the schema generation logic if needed for specific data types.
