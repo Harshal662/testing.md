@@ -1,141 +1,132 @@
-The error occurs because the `ExampleParquetWriter` class is not directly included in the `parquet-avro` library you imported. Instead, you need to write Parquet files using the `ParquetWriter` class with proper configurations. Below is the corrected code.
+To enhance your Java code to include headers from another Excel file, you can modify it as follows. Here’s what you need to do:
 
-### Corrected Code
+1. **Read the headers** from the other Excel file.
+2. Add these headers as the first row in your resulting Excel file.
+
+Below is the updated code:
 
 ```java
-import org.apache.parquet.hadoop.ParquetWriter;
-import org.apache.parquet.hadoop.metadata.CompressionCodecName;
-import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.Types;
-import org.apache.parquet.example.data.Group;
-import org.apache.parquet.example.data.simple.SimpleGroup;
-import org.apache.parquet.hadoop.example.GroupWriteSupport;
 import org.apache.poi.ss.usermodel.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
 
-public class ExcelToParquet {
-
-    private static final Logger logger = LoggerFactory.getLogger(ExcelToParquet.class);
+public class PipeSeparatedToExcel {
 
     public static void main(String[] args) {
-        String excelFilePath = "input.xlsx";
-        String parquetFilePath = "output.parquet";
+        String inputFilePath = "data.dat"; // Path to your .dat file
+        String headerFilePath = "headers.xlsx"; // Path to the Excel file containing headers
+        String outputFilePath = "output.xlsx"; // Path for the Excel file
 
-        try (FileInputStream fileInputStream = new FileInputStream(new File(excelFilePath))) {
-            logger.info("Reading Excel file: {}", excelFilePath);
-            Workbook workbook = WorkbookFactory.create(fileInputStream);
-            Sheet sheet = workbook.getSheetAt(0); // Read the first sheet
-            
-            logger.info("Generating Parquet schema...");
-            MessageType schema = generateParquetSchema(sheet);
+        try {
+            // Step 1: Read all lines from the .dat file
+            List<String> lines = Files.readAllLines(Paths.get(inputFilePath));
 
-            logger.info("Writing Parquet file: {}", parquetFilePath);
-            writeParquet(sheet, schema, parquetFilePath);
-            
-            logger.info("Conversion completed successfully. Parquet file saved at: {}", parquetFilePath);
-        } catch (IOException e) {
-            logger.error("Error processing the files: {}", e.getMessage(), e);
-            System.err.println("Error: " + e.getMessage()); // Print to terminal
-        }
-    }
-
-    private static MessageType generateParquetSchema(Sheet sheet) {
-        Row headerRow = sheet.getRow(0); // Assume the first row as header
-        Types.MessageTypeBuilder builder = Types.buildMessage();
-        for (Cell cell : headerRow) {
-            String columnName = cell.getStringCellValue();
-            builder = builder.optional(org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY).named(columnName);
-        }
-        logger.info("Parquet schema generated with {} columns.", headerRow.getLastCellNum());
-        return builder.named("ExcelSchema");
-    }
-
-    private static void writeParquet(Sheet sheet, MessageType schema, String parquetFilePath) throws IOException {
-        GroupWriteSupport.setSchema(schema, new org.apache.hadoop.conf.Configuration());
-        try (ParquetWriter<Group> writer = new ParquetWriter<>(
-                new org.apache.hadoop.fs.Path(parquetFilePath),
-                new GroupWriteSupport(),
-                CompressionCodecName.SNAPPY,
-                ParquetWriter.DEFAULT_BLOCK_SIZE,
-                ParquetWriter.DEFAULT_PAGE_SIZE)) {
-
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) { // Start from the second row
-                Row row = sheet.getRow(i);
-                Group group = new SimpleGroup(schema);
-                for (int j = 0; j < row.getLastCellNum(); j++) {
-                    Cell cell = row.getCell(j);
-                    if (cell != null) {
-                        group.add(j, cell.toString());
-                    } else {
-                        group.add(j, ""); // Add empty string for null cells
-                    }
-                }
-                writer.write(group);
+            // Remove the first and last lines
+            if (lines.size() > 2) { // Ensure there are enough lines to process
+                lines = lines.subList(1, lines.size() - 1);
+            } else {
+                System.err.println("The file has insufficient lines to process after removing first and last.");
+                return;
             }
-            logger.info("Parquet file writing completed.");
+
+            // Step 2: Read headers from the Excel file
+            List<String> headers = readHeadersFromExcel(headerFilePath);
+
+            // Create a new workbook and sheet
+            Workbook workbook = new XSSFWorkbook();
+            Sheet sheet = workbook.createSheet("Sheet1");
+
+            // Add headers as the first row
+            if (!headers.isEmpty()) {
+                Row headerRow = sheet.createRow(0);
+                for (int colIndex = 0; colIndex < headers.size(); colIndex++) {
+                    Cell cell = headerRow.createCell(colIndex);
+                    cell.setCellValue(headers.get(colIndex));
+                }
+            }
+
+            // Process each line from the .dat file and split by '|'
+            int rowIndex = 1; // Start adding data from the second row
+            for (String line : lines) {
+                Row row = sheet.createRow(rowIndex++);
+                String[] values = line.split("\\|");
+                for (int colIndex = 0; colIndex < values.length; colIndex++) {
+                    Cell cell = row.createCell(colIndex);
+                    cell.setCellValue(values[colIndex].trim());
+                }
+            }
+
+            // Auto-size all columns
+            for (int colIndex = 0; colIndex < sheet.getRow(0).getPhysicalNumberOfCells(); colIndex++) {
+                sheet.autoSizeColumn(colIndex);
+            }
+
+            // Write the data to an Excel file
+            try (FileOutputStream fileOut = new FileOutputStream(outputFilePath)) {
+                workbook.write(fileOut);
+            }
+
+            workbook.close();
+            System.out.println("Data successfully written to " + outputFilePath);
+
+        } catch (IOException e) {
+            System.err.println("Error processing file: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Reads headers from the first column of an Excel file.
+     *
+     * @param filePath Path to the Excel file containing headers
+     * @return A list of headers
+     * @throws IOException If an I/O error occurs
+     */
+    private static List<String> readHeadersFromExcel(String filePath) throws IOException {
+        try (FileInputStream fis = new FileInputStream(filePath)) {
+            Workbook workbook = new XSSFWorkbook(fis);
+            Sheet sheet = workbook.getSheetAt(0);
+            Row row = sheet.getRow(0); // Assuming headers are in the first row
+
+            // Read all cells in the row
+            List<String> headers = new java.util.ArrayList<>();
+            for (Cell cell : row) {
+                headers.add(cell.getStringCellValue().trim());
+            }
+            workbook.close();
+            return headers;
         }
     }
 }
 ```
 
-### Changes Made
-1. **Replaced `ExampleParquetWriter`**:
-   - Replaced it with a manual configuration of `ParquetWriter` using `GroupWriteSupport`.
+### Explanation of Changes:
+1. **`readHeadersFromExcel` Method**:
+   - Reads headers from the first row of an external Excel file (`headers.xlsx`).
+   - Assumes the headers are stored in the first row of the file.
 
-2. **Schema Setup**:
-   - Used `GroupWriteSupport.setSchema(schema, Configuration)` to set up the schema for ParquetWriter.
+2. **Adding Headers to the Output**:
+   - After reading headers, they're added to the first row of the output sheet.
 
-3. **ParquetWriter Initialization**:
-   - Properly initialized `ParquetWriter` with parameters for compression, block size, and page size.
+3. **Adjust Row Index**:
+   - Data rows now start from index `1`, because row `0` is used for headers.
 
-### Ensure Proper Maven Dependencies
-Ensure your `pom.xml` includes these dependencies:
+### Assumptions:
+- The external Excel file contains headers in the first row, and the number of headers matches the number of columns in your data.
+- You have Apache POI dependencies set up in your project.
+
+### Dependencies:
+Ensure you have the Apache POI library in your project. Add the following to your `pom.xml` (if using Maven):
 
 ```xml
-<dependencies>
-    <!-- Apache POI -->
-    <dependency>
-        <groupId>org.apache.poi</groupId>
-        <artifactId>poi</artifactId>
-        <version>5.2.3</version>
-    </dependency>
-    <dependency>
-        <groupId>org.apache.poi</groupId>
-        <artifactId>poi-ooxml</artifactId>
-        <version>5.2.3</version>
-    </dependency>
-
-    <!-- Apache Parquet -->
-    <dependency>
-        <groupId>org.apache.parquet</groupId>
-        <artifactId>parquet-avro</artifactId>
-        <version>1.13.0</version>
-    </dependency>
-    <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-common</artifactId>
-        <version>3.3.6</version>
-    </dependency>
-
-    <!-- SLF4J with Logback -->
-    <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
-        <version>2.0.9</version>
-    </dependency>
-    <dependency>
-        <groupId>ch.qos.logback</groupId>
-        <artifactId>logback-classic</artifactId>
-        <version>1.4.11</version>
-    </dependency>
-</dependencies>
+<dependency>
+    <groupId>org.apache.poi</groupId>
+    <artifactId>poi-ooxml</artifactId>
+    <version>5.2.3</version>
+</dependency>
 ```
 
-### Output
-- Logs will be displayed on the terminal with appropriate log levels (`INFO`, `ERROR`).
-- Errors will also print to `System.err` for visibility.
+This will successfully include headers from the external file in your resulting Excel file.
