@@ -1,12 +1,6 @@
-To address your updated requirement, the code will now:
+To include the additional columns `MID` from `output1.xlsx` and `UDF_CHAR_9` from `positive.xlsx` in the output file, the following changes have been made to the code:
 
-1. Match `LOCAL_REFERENCE_NO` from `output1.xlsx` with `UDF_CHAR_9` from `positive.xlsx`.
-2. Include all rows from `output1.xlsx` in the output.
-   - If a match is found, include the corresponding data from `positive.xlsx`.
-   - If no match is found, leave the columns from `positive.xlsx` blank.
-
-Here’s the updated code:
-
+### Updated Code
 ```java
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -23,7 +17,7 @@ public class ProcessExcelFiles {
 
         try {
             // Read specific columns from both files
-            Map<String, String> file1Data = readFile1(file1Path);
+            Map<String, Map<String, String>> file1Data = readFile1(file1Path);
             Map<String, Map<String, String>> file2Data = readFile2(file2Path);
 
             // Merge data
@@ -38,8 +32,8 @@ public class ProcessExcelFiles {
         }
     }
 
-    private static Map<String, String> readFile1(String filePath) throws IOException {
-        Map<String, String> data = new LinkedHashMap<>();
+    private static Map<String, Map<String, String>> readFile1(String filePath) throws IOException {
+        Map<String, Map<String, String>> data = new LinkedHashMap<>();
 
         try (FileInputStream fis = new FileInputStream(filePath);
              Workbook workbook = WorkbookFactory.create(fis)) {
@@ -48,6 +42,7 @@ public class ProcessExcelFiles {
 
             int localRefNoIndex = -1;
             int yourRefIndex = -1;
+            int midIndex = -1;
 
             Row headerRow = sheet.getRow(0);
             for (Cell cell : headerRow) {
@@ -56,18 +51,23 @@ public class ProcessExcelFiles {
                     localRefNoIndex = cell.getColumnIndex();
                 } else if ("YOUR_REFERENCE".equalsIgnoreCase(header)) {
                     yourRefIndex = cell.getColumnIndex();
+                } else if ("MID".equalsIgnoreCase(header)) {
+                    midIndex = cell.getColumnIndex();
                 }
             }
 
-            if (localRefNoIndex == -1 || yourRefIndex == -1) {
+            if (localRefNoIndex == -1 || yourRefIndex == -1 || midIndex == -1) {
                 throw new IllegalArgumentException("Required columns not found in " + filePath);
             }
 
             for (Row row : sheet) {
                 if (row.getRowNum() == 0) continue; // Skip header
                 String localRefNo = getCellValue(row.getCell(localRefNoIndex));
-                String yourRef = getCellValue(row.getCell(yourRefIndex));
-                data.put(localRefNo, yourRef);
+                Map<String, String> rowData = new LinkedHashMap<>();
+                rowData.put("LOCAL_REFERENCE_NO", localRefNo);
+                rowData.put("YOUR_REFERENCE", getCellValue(row.getCell(yourRefIndex)));
+                rowData.put("MID", getCellValue(row.getCell(midIndex)));
+                data.put(localRefNo, rowData);
             }
         }
         return data;
@@ -108,6 +108,7 @@ public class ProcessExcelFiles {
                 if (row.getRowNum() == 0) continue; // Skip header
                 Map<String, String> rowData = new HashMap<>();
                 String udfChar9 = getCellValue(row.getCell(udfChar9Index));
+                rowData.put("UDF_CHAR_9", udfChar9);
                 rowData.put("UDF_CHAR_28", getCellValue(row.getCell(udfChar28Index)));
                 rowData.put("INITIAL_PRICE_ITEM_CD", getCellValue(row.getCell(initialPriceItemCdIndex)));
                 rowData.put("PRICEITEM_CD", getCellValue(row.getCell(priceItemCdIndex)));
@@ -117,21 +118,21 @@ public class ProcessExcelFiles {
         return data;
     }
 
-    private static List<Map<String, String>> mergeData(Map<String, String> file1Data, Map<String, Map<String, String>> file2Data) {
+    private static List<Map<String, String>> mergeData(Map<String, Map<String, String>> file1Data, Map<String, Map<String, String>> file2Data) {
         List<Map<String, String>> mergedData = new ArrayList<>();
 
-        for (Map.Entry<String, String> entry : file1Data.entrySet()) {
+        for (Map.Entry<String, Map<String, String>> entry : file1Data.entrySet()) {
             String localRefNo = entry.getKey();
-            String yourRef = entry.getValue();
-
-            Map<String, String> rowData = new LinkedHashMap<>();
-            rowData.put("LOCAL_REFERENCE_NO", localRefNo);
-            rowData.put("YOUR_REFERENCE", yourRef);
+            Map<String, String> rowData = new LinkedHashMap<>(entry.getValue());
 
             Map<String, String> file2Row = file2Data.get(localRefNo);
             if (file2Row != null) {
-                rowData.putAll(file2Row);
+                rowData.put("UDF_CHAR_9", file2Row.get("UDF_CHAR_9"));
+                rowData.put("UDF_CHAR_28", file2Row.get("UDF_CHAR_28"));
+                rowData.put("INITIAL_PRICE_ITEM_CD", file2Row.get("INITIAL_PRICE_ITEM_CD"));
+                rowData.put("PRICEITEM_CD", file2Row.get("PRICEITEM_CD"));
             } else {
+                rowData.put("UDF_CHAR_9", "");
                 rowData.put("UDF_CHAR_28", "");
                 rowData.put("INITIAL_PRICE_ITEM_CD", "");
                 rowData.put("PRICEITEM_CD", "");
@@ -149,7 +150,7 @@ public class ProcessExcelFiles {
 
             // Create header row
             Row headerRow = sheet.createRow(0);
-            String[] headers = {"LOCAL_REFERENCE_NO", "YOUR_REFERENCE", "UDF_CHAR_28", "INITIAL_PRICE_ITEM_CD", "PRICEITEM_CD"};
+            String[] headers = {"LOCAL_REFERENCE_NO", "YOUR_REFERENCE", "MID", "UDF_CHAR_9", "UDF_CHAR_28", "INITIAL_PRICE_ITEM_CD", "PRICEITEM_CD"};
             for (int i = 0; i < headers.length; i++) {
                 headerRow.createCell(i).setCellValue(headers[i]);
             }
@@ -160,9 +161,11 @@ public class ProcessExcelFiles {
                 Row dataRow = sheet.createRow(rowIndex++);
                 dataRow.createCell(0).setCellValue(row.get("LOCAL_REFERENCE_NO"));
                 dataRow.createCell(1).setCellValue(row.get("YOUR_REFERENCE"));
-                dataRow.createCell(2).setCellValue(row.get("UDF_CHAR_28"));
-                dataRow.createCell(3).setCellValue(row.get("INITIAL_PRICE_ITEM_CD"));
-                dataRow.createCell(4).setCellValue(row.get("PRICEITEM_CD"));
+                dataRow.createCell(2).setCellValue(row.get("MID"));
+                dataRow.createCell(3).setCellValue(row.get("UDF_CHAR_9"));
+                dataRow.createCell(4).setCellValue(row.get("UDF_CHAR_28"));
+                dataRow.createCell(5).setCellValue(row.get("INITIAL_PRICE_ITEM_CD"));
+                dataRow.createCell(6).setCellValue(row.get("PRICEITEM_CD"));
             }
 
             // Write to file
@@ -196,14 +199,19 @@ public class ProcessExcelFiles {
 }
 ```
 
-### Key Changes:
-1. **`mergeData` Method**:
-   - Iterates through all `LOCAL_REFERENCE_NO` in `output1.xlsx`.
-   - Adds matching rows from `positive.xlsx` or leaves columns blank if no match is found.
+### Key Additions:
+1. **Added `MID` from `output1.xlsx`**:
+   - Retrieved during the reading of `output1.xlsx`.
+   - Included in the merged data.
 
-2. **Output Format**:
-   - `LOCAL_REFERENCE_NO` and `YOUR_REFERENCE` from `output1.xlsx` are always present.
-   - Columns `UDF_CHAR_28`, `INITIAL_PRICE_ITEM_CD`, and `PRICEITEM_CD` are blank for unmatched rows.
+2. **Added `UDF_CHAR_9` from `positive.xlsx`**:
+   - Retrieved during the reading of `positive.xlsx`.
+   - Included in the merged data.
 
-3. **Saved File**:
-   - The merged data is saved to `merged_data.xlsx`.
+3. **Updated Headers**:
+   - Added `MID` and `UDF_CHAR_9` in the output headers.
+
+4. **Merged Output**:
+   - Both `MID` and `UDF_CHAR_9` are included in the output file (`merged_data.xlsx`). 
+
+This ensures all required columns (`LOCAL_REFERENCE_NO`, `YOUR_REFERENCE`, `MID`, `UDF_CHAR_9`, `UDF_CHAR_28`, `INITIAL_PRICE_ITEM_CD`, `PRICEITEM_CD`) are included in the output file.
