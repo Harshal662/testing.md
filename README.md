@@ -1,217 +1,117 @@
-To include the additional columns `MID` from `output1.xlsx` and `UDF_CHAR_9` from `positive.xlsx` in the output file, the following changes have been made to the code:
+Here is the Java code to add a new column named `RESULT` based on the conditions you described. This code uses Apache POI for Excel processing, which is common in Maven-based Java projects.
 
-### Updated Code
+### Maven Dependencies
+Add the following dependencies to your `pom.xml` file for Apache POI:
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>org.apache.poi</groupId>
+        <artifactId>poi-ooxml</artifactId>
+        <version>5.2.3</version>
+    </dependency>
+</dependencies>
+```
+
+### Java Code
 ```java
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.*;
-import java.util.*;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
-public class ProcessExcelFiles {
-
+public class ExcelProcessor {
     public static void main(String[] args) {
-        String file1Path = "output1.xlsx"; // Replace with the path to output1.xlsx
-        String file2Path = "positive.xlsx"; // Replace with the path to positive.xlsx
-        String outputFilePath = "merged_data.xlsx"; // Output file path
+        String inputFilePath = "path/to/your/input/file.xlsx";
+        String outputFilePath = "path/to/your/output/file.xlsx";
 
-        try {
-            // Read specific columns from both files
-            Map<String, Map<String, String>> file1Data = readFile1(file1Path);
-            Map<String, Map<String, String>> file2Data = readFile2(file2Path);
+        try (FileInputStream fis = new FileInputStream(inputFilePath);
+             Workbook workbook = new XSSFWorkbook(fis)) {
 
-            // Merge data
-            List<Map<String, String>> mergedData = mergeData(file1Data, file2Data);
+            Sheet sheet = workbook.getSheetAt(0); // Assuming data is in the first sheet
+            int resultColIndex = sheet.getRow(0).getLastCellNum(); // Add RESULT column at the end
 
-            // Save merged data to a new Excel file
-            saveMergedData(mergedData, outputFilePath);
-
-            System.out.println("Merged data has been saved to: " + outputFilePath);
-        } catch (Exception e) {
-            System.err.println("Error processing files: " + e.getMessage());
-        }
-    }
-
-    private static Map<String, Map<String, String>> readFile1(String filePath) throws IOException {
-        Map<String, Map<String, String>> data = new LinkedHashMap<>();
-
-        try (FileInputStream fis = new FileInputStream(filePath);
-             Workbook workbook = WorkbookFactory.create(fis)) {
-
-            Sheet sheet = workbook.getSheetAt(0);
-
-            int localRefNoIndex = -1;
-            int yourRefIndex = -1;
-            int midIndex = -1;
-
+            // Add a header for the new column
             Row headerRow = sheet.getRow(0);
-            for (Cell cell : headerRow) {
-                String header = cell.getStringCellValue();
-                if ("LOCAL_REFERENCE_NO".equalsIgnoreCase(header)) {
-                    localRefNoIndex = cell.getColumnIndex();
-                } else if ("YOUR_REFERENCE".equalsIgnoreCase(header)) {
-                    yourRefIndex = cell.getColumnIndex();
-                } else if ("MID".equalsIgnoreCase(header)) {
-                    midIndex = cell.getColumnIndex();
+            Cell resultHeaderCell = headerRow.createCell(resultColIndex);
+            resultHeaderCell.setCellValue("RESULT");
+
+            // Process rows
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null) continue;
+
+                Cell udfChar9Cell = row.getCell(getColumnIndex(sheet, "UDF_CHAR_9"));
+                Cell udfChar28Cell = row.getCell(getColumnIndex(sheet, "UDF_CHAR_28"));
+                Cell initialPriceItemCdCell = row.getCell(getColumnIndex(sheet, "INITIAL_PRICE_ITEM_CD"));
+
+                String udfChar9 = getCellValueAsString(udfChar9Cell);
+                String udfChar28 = getCellValueAsString(udfChar28Cell);
+                String initialPriceItemCd = getCellValueAsString(initialPriceItemCdCell);
+
+                Cell resultCell = row.createCell(resultColIndex);
+
+                if (udfChar9 == null || udfChar9.trim().isEmpty()) {
+                    resultCell.setCellValue("Transaction Missing");
+                } else if (udfChar28 != null && udfChar28.equals(initialPriceItemCd)) {
+                    resultCell.setCellValue("Success");
+                } else {
+                    resultCell.setCellValue("Incorrect Product Detected");
                 }
             }
 
-            if (localRefNoIndex == -1 || yourRefIndex == -1 || midIndex == -1) {
-                throw new IllegalArgumentException("Required columns not found in " + filePath);
-            }
-
-            for (Row row : sheet) {
-                if (row.getRowNum() == 0) continue; // Skip header
-                String localRefNo = getCellValue(row.getCell(localRefNoIndex));
-                Map<String, String> rowData = new LinkedHashMap<>();
-                rowData.put("LOCAL_REFERENCE_NO", localRefNo);
-                rowData.put("YOUR_REFERENCE", getCellValue(row.getCell(yourRefIndex)));
-                rowData.put("MID", getCellValue(row.getCell(midIndex)));
-                data.put(localRefNo, rowData);
-            }
-        }
-        return data;
-    }
-
-    private static Map<String, Map<String, String>> readFile2(String filePath) throws IOException {
-        Map<String, Map<String, String>> data = new HashMap<>();
-
-        try (FileInputStream fis = new FileInputStream(filePath);
-             Workbook workbook = WorkbookFactory.create(fis)) {
-
-            Sheet sheet = workbook.getSheetAt(0);
-
-            int udfChar9Index = -1;
-            int udfChar28Index = -1;
-            int initialPriceItemCdIndex = -1;
-            int priceItemCdIndex = -1;
-
-            Row headerRow = sheet.getRow(0);
-            for (Cell cell : headerRow) {
-                String header = cell.getStringCellValue();
-                if ("UDF_CHAR_9".equalsIgnoreCase(header)) {
-                    udfChar9Index = cell.getColumnIndex();
-                } else if ("UDF_CHAR_28".equalsIgnoreCase(header)) {
-                    udfChar28Index = cell.getColumnIndex();
-                } else if ("INITIAL_PRICE_ITEM_CD".equalsIgnoreCase(header)) {
-                    initialPriceItemCdIndex = cell.getColumnIndex();
-                } else if ("PRICEITEM_CD".equalsIgnoreCase(header)) {
-                    priceItemCdIndex = cell.getColumnIndex();
-                }
-            }
-
-            if (udfChar9Index == -1 || udfChar28Index == -1 || initialPriceItemCdIndex == -1 || priceItemCdIndex == -1) {
-                throw new IllegalArgumentException("Required columns not found in " + filePath);
-            }
-
-            for (Row row : sheet) {
-                if (row.getRowNum() == 0) continue; // Skip header
-                Map<String, String> rowData = new HashMap<>();
-                String udfChar9 = getCellValue(row.getCell(udfChar9Index));
-                rowData.put("UDF_CHAR_9", udfChar9);
-                rowData.put("UDF_CHAR_28", getCellValue(row.getCell(udfChar28Index)));
-                rowData.put("INITIAL_PRICE_ITEM_CD", getCellValue(row.getCell(initialPriceItemCdIndex)));
-                rowData.put("PRICEITEM_CD", getCellValue(row.getCell(priceItemCdIndex)));
-                data.put(udfChar9, rowData);
-            }
-        }
-        return data;
-    }
-
-    private static List<Map<String, String>> mergeData(Map<String, Map<String, String>> file1Data, Map<String, Map<String, String>> file2Data) {
-        List<Map<String, String>> mergedData = new ArrayList<>();
-
-        for (Map.Entry<String, Map<String, String>> entry : file1Data.entrySet()) {
-            String localRefNo = entry.getKey();
-            Map<String, String> rowData = new LinkedHashMap<>(entry.getValue());
-
-            Map<String, String> file2Row = file2Data.get(localRefNo);
-            if (file2Row != null) {
-                rowData.put("UDF_CHAR_9", file2Row.get("UDF_CHAR_9"));
-                rowData.put("UDF_CHAR_28", file2Row.get("UDF_CHAR_28"));
-                rowData.put("INITIAL_PRICE_ITEM_CD", file2Row.get("INITIAL_PRICE_ITEM_CD"));
-                rowData.put("PRICEITEM_CD", file2Row.get("PRICEITEM_CD"));
-            } else {
-                rowData.put("UDF_CHAR_9", "");
-                rowData.put("UDF_CHAR_28", "");
-                rowData.put("INITIAL_PRICE_ITEM_CD", "");
-                rowData.put("PRICEITEM_CD", "");
-            }
-
-            mergedData.add(rowData);
-        }
-
-        return mergedData;
-    }
-
-    private static void saveMergedData(List<Map<String, String>> mergedData, String outputFilePath) throws IOException {
-        try (Workbook workbook = new XSSFWorkbook()) {
-            Sheet sheet = workbook.createSheet("Merged Data");
-
-            // Create header row
-            Row headerRow = sheet.createRow(0);
-            String[] headers = {"LOCAL_REFERENCE_NO", "YOUR_REFERENCE", "MID", "UDF_CHAR_9", "UDF_CHAR_28", "INITIAL_PRICE_ITEM_CD", "PRICEITEM_CD"};
-            for (int i = 0; i < headers.length; i++) {
-                headerRow.createCell(i).setCellValue(headers[i]);
-            }
-
-            // Fill data rows
-            int rowIndex = 1;
-            for (Map<String, String> row : mergedData) {
-                Row dataRow = sheet.createRow(rowIndex++);
-                dataRow.createCell(0).setCellValue(row.get("LOCAL_REFERENCE_NO"));
-                dataRow.createCell(1).setCellValue(row.get("YOUR_REFERENCE"));
-                dataRow.createCell(2).setCellValue(row.get("MID"));
-                dataRow.createCell(3).setCellValue(row.get("UDF_CHAR_9"));
-                dataRow.createCell(4).setCellValue(row.get("UDF_CHAR_28"));
-                dataRow.createCell(5).setCellValue(row.get("INITIAL_PRICE_ITEM_CD"));
-                dataRow.createCell(6).setCellValue(row.get("PRICEITEM_CD"));
-            }
-
-            // Write to file
+            // Save the updated workbook
             try (FileOutputStream fos = new FileOutputStream(outputFilePath)) {
                 workbook.write(fos);
             }
+
+            System.out.println("Processing complete. Results saved in: " + outputFilePath);
+
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
-    private static String getCellValue(Cell cell) {
-        if (cell == null) return "";
+    // Helper method to get the column index by column name
+    private static int getColumnIndex(Sheet sheet, String columnName) {
+        Row headerRow = sheet.getRow(0);
+        for (Cell cell : headerRow) {
+            if (columnName.equals(cell.getStringCellValue())) {
+                return cell.getColumnIndex();
+            }
+        }
+        throw new IllegalArgumentException("Column " + columnName + " not found");
+    }
+
+    // Helper method to safely retrieve cell values as strings
+    private static String getCellValueAsString(Cell cell) {
+        if (cell == null) return null;
         switch (cell.getCellType()) {
             case STRING:
                 return cell.getStringCellValue();
             case NUMERIC:
-                if (DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getDateCellValue().toString();
-                } else {
-                    return String.valueOf(cell.getNumericCellValue());
-                }
+                return String.valueOf(cell.getNumericCellValue());
             case BOOLEAN:
                 return String.valueOf(cell.getBooleanCellValue());
-            case FORMULA:
-                return cell.getCellFormula();
             case BLANK:
-                return "";
+                return null;
             default:
-                return "UNKNOWN";
+                return null;
         }
     }
 }
 ```
 
-### Key Additions:
-1. **Added `MID` from `output1.xlsx`**:
-   - Retrieved during the reading of `output1.xlsx`.
-   - Included in the merged data.
+### Explanation
+1. **Read the Excel File**: The file is read using Apache POI, targeting the first sheet.
+2. **Determine the New Column Index**: `RESULT` is added at the end of the header row.
+3. **Logic Implementation**:
+   - Check if `UDF_CHAR_9` is missing.
+   - If present, compare `UDF_CHAR_28` and `INITIAL_PRICE_ITEM_CD` values.
+4. **Write Back to Excel**: The updated sheet is written to a new file.
 
-2. **Added `UDF_CHAR_9` from `positive.xlsx`**:
-   - Retrieved during the reading of `positive.xlsx`.
-   - Included in the merged data.
-
-3. **Updated Headers**:
-   - Added `MID` and `UDF_CHAR_9` in the output headers.
-
-4. **Merged Output**:
-   - Both `MID` and `UDF_CHAR_9` are included in the output file (`merged_data.xlsx`). 
-
-This ensures all required columns (`LOCAL_REFERENCE_NO`, `YOUR_REFERENCE`, `MID`, `UDF_CHAR_9`, `UDF_CHAR_28`, `INITIAL_PRICE_ITEM_CD`, `PRICEITEM_CD`) are included in the output file.
+### How to Run
+1. Replace `path/to/your/input/file.xlsx` and `path/to/your/output/file.xlsx` with the actual file paths.
+2. Build and run the project. The output file will contain the new `RESULT` column with the desired values.
