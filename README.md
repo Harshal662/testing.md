@@ -1,19 +1,11 @@
-Here is the Java code to add a new column named `RESULT` based on the conditions you described. This code uses Apache POI for Excel processing, which is common in Maven-based Java projects.
+This issue may occur due to subtle data differences, such as trailing spaces or mismatched data types. Here’s how to fix it:
 
-### Maven Dependencies
-Add the following dependencies to your `pom.xml` file for Apache POI:
+### Updated Code
+The key updates ensure:
+1. Trimming whitespace from the cell values.
+2. Explicitly checking for `null` before comparisons.
+3. Avoiding type mismatches.
 
-```xml
-<dependencies>
-    <dependency>
-        <groupId>org.apache.poi</groupId>
-        <artifactId>poi-ooxml</artifactId>
-        <version>5.2.3</version>
-    </dependency>
-</dependencies>
-```
-
-### Java Code
 ```java
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -55,7 +47,8 @@ public class ExcelProcessor {
 
                 if (udfChar9 == null || udfChar9.trim().isEmpty()) {
                     resultCell.setCellValue("Transaction Missing");
-                } else if (udfChar28 != null && udfChar28.equals(initialPriceItemCd)) {
+                } else if (udfChar28 != null && initialPriceItemCd != null 
+                           && udfChar28.trim().equals(initialPriceItemCd.trim())) {
                     resultCell.setCellValue("Success");
                 } else {
                     resultCell.setCellValue("Incorrect Product Detected");
@@ -104,14 +97,18 @@ public class ExcelProcessor {
 }
 ```
 
-### Explanation
-1. **Read the Excel File**: The file is read using Apache POI, targeting the first sheet.
-2. **Determine the New Column Index**: `RESULT` is added at the end of the header row.
-3. **Logic Implementation**:
-   - Check if `UDF_CHAR_9` is missing.
-   - If present, compare `UDF_CHAR_28` and `INITIAL_PRICE_ITEM_CD` values.
-4. **Write Back to Excel**: The updated sheet is written to a new file.
+### Changes Made
+1. **Trim Values**: `trim()` ensures trailing/leading spaces are removed.
+2. **Null Safety**: Explicitly checks that both `UDF_CHAR_28` and `INITIAL_PRICE_ITEM_CD` are non-`null` before comparison.
+3. **String Comparison**: Used `.equals()` after `trim()` to ensure accurate string matching.
 
-### How to Run
-1. Replace `path/to/your/input/file.xlsx` and `path/to/your/output/file.xlsx` with the actual file paths.
-2. Build and run the project. The output file will contain the new `RESULT` column with the desired values.
+### Testing and Debugging
+1. Double-check your Excel file for any hidden characters or formatting issues (like spaces or newlines).
+2. If the problem persists, log the values being compared:
+
+```java
+System.out.println("Row " + i + ": UDF_CHAR_28='" + udfChar28 + "', INITIAL_PRICE_ITEM_CD='" + initialPriceItemCd + "'");
+```
+
+### Expected Output
+After running the updated code, the `RESULT` column should correctly classify rows as "Success" or "Incorrect Product Detected" based on your conditions.
