@@ -1,6 +1,8 @@
-To print the map, you can use the `forEach` method to iterate over the map and print its contents in a readable format. The `resultMap` contains `YOUR_REFERENCE` as the key and another map with the column names as keys and their corresponding values as values. Here’s how you can modify the code to print the map:
+To search for `LOCAL_REFERENCE_NO` by its column name rather than relying on its index, you can first identify the index of the `LOCAL_REFERENCE_NO` column by searching for the header row. This is done by iterating through the first row (which typically contains column names) and matching the column name to find the index. Once the index is identified, you can use it to fetch the data from subsequent rows.
 
-### Code Update for Printing the Map
+Here’s how you can modify the code to dynamically find the column index based on its name, rather than assuming it’s in a specific position.
+
+### Modified Code to Search by Column Name
 
 ```java
 import org.apache.poi.ss.usermodel.*;
@@ -37,31 +39,36 @@ public class ExcelProcessor {
 
         // Read columns of interest from the second file into a map
         Map<String, List<String>> file2Data = new HashMap<>();
+        int localReferenceNoIndexFile2 = getColumnIndex(sheet2, "LOCAL_REFERENCE_NO");  // Find index of LOCAL_REFERENCE_NO
         for (Row row : sheet2) {
-            String localReferenceNo = getCellValue(row, 0); // Assuming LOCAL_REFERENCE_NO is in the first column
+            String localReferenceNo = getCellValue(row, localReferenceNoIndexFile2);  // Get value using dynamic index
             if (localReferenceNo != null) {
                 List<String> rowData = new ArrayList<>();
-                rowData.add(getCellValue(row, 1)); // CHARGING_INDICATOR
-                rowData.add(getCellValue(row, 2)); // ORIG_AMOUNT_CURRENCY
-                rowData.add(getCellValue(row, 3)); // FINAL_MOP
-                rowData.add(getCellValue(row, 4)); // RECEIVER_BIC
-                rowData.add(getCellValue(row, 5)); // PSD_INDICATOR
-                rowData.add(getCellValue(row, 6)); // PAYMENT_DESTINATION_COUNTRY
-                rowData.add(getCellValue(row, 7)); // MESSAGE_TYPE
-                rowData.add(getCellValue(row, 8)); // DR_TRN_CODES
-                rowData.add(getCellValue(row, 9)); // CR_TRN_CODES
-                rowData.add(getCellValue(row, 10)); // FI_CHARGING_INDICATOR
+                rowData.add(getCellValue(row, getColumnIndex(sheet2, "CHARGING_INDICATOR")));
+                rowData.add(getCellValue(row, getColumnIndex(sheet2, "ORIG_AMOUNT_CURRENCY")));
+                rowData.add(getCellValue(row, getColumnIndex(sheet2, "FINAL_MOP")));
+                rowData.add(getCellValue(row, getColumnIndex(sheet2, "RECEIVER_BIC")));
+                rowData.add(getCellValue(row, getColumnIndex(sheet2, "PSD_INDICATOR")));
+                rowData.add(getCellValue(row, getColumnIndex(sheet2, "PAYMENT_DESTINATION_COUNTRY")));
+                rowData.add(getCellValue(row, getColumnIndex(sheet2, "MESSAGE_TYPE")));
+                rowData.add(getCellValue(row, getColumnIndex(sheet2, "DR_TRN_CODES")));
+                rowData.add(getCellValue(row, getColumnIndex(sheet2, "CR_TRN_CODES")));
+                rowData.add(getCellValue(row, getColumnIndex(sheet2, "FI_CHARGING_INDICATOR")));
                 file2Data.put(localReferenceNo, rowData);
             }
         }
 
+        // Get index of the LOCAL_REFERENCE_NO and RESULT columns in the first file
+        int localReferenceNoIndexFile1 = getColumnIndex(sheet1, "LOCAL_REFERENCE_NO");
+        int resultIndexFile1 = getColumnIndex(sheet1, "RESULT");
+
         // Iterate over the first file and process the rows with "Incorrect Product Detected" in RESULT column
         for (Row row : sheet1) {
-            String result = getCellValue(row, 4);  // Assuming RESULT is in the 5th column (0-indexed)
-            String localReferenceNo = getCellValue(row, 0);  // Assuming LOCAL_REFERENCE_NO is in the first column
+            String result = getCellValue(row, resultIndexFile1);  // Get value using dynamic index
+            String localReferenceNo = getCellValue(row, localReferenceNoIndexFile1);  // Get value using dynamic index
 
             if ("Incorrect Product Detected".equals(result) && localReferenceNo != null) {
-                String yourReference = getCellValue(row, 1); // Assuming YOUR_REFERENCE is in the second column
+                String yourReference = getCellValue(row, getColumnIndex(sheet1, "YOUR_REFERENCE")); // Find YOUR_REFERENCE column
 
                 // Retrieve corresponding data from the second file using LOCAL_REFERENCE_NO
                 List<String> correspondingData = file2Data.get(localReferenceNo);
@@ -105,6 +112,16 @@ public class ExcelProcessor {
         return null;
     }
 
+    private static int getColumnIndex(Sheet sheet, String columnName) {
+        Row headerRow = sheet.getRow(0);  // Assuming the first row is the header row
+        for (Cell cell : headerRow) {
+            if (columnName.equals(cell.getStringCellValue())) {
+                return cell.getColumnIndex();
+            }
+        }
+        throw new IllegalArgumentException("Column " + columnName + " not found.");
+    }
+
     private static void printResultMap(Map<String, Map<String, String>> resultMap) {
         // Print the map
         System.out.println("Result Map (YOUR_REFERENCE -> Data):");
@@ -118,16 +135,25 @@ public class ExcelProcessor {
 }
 ```
 
-### Explanation of the Print Logic
+### Explanation of Changes
 
-1. **`printResultMap` Method**:
-   - This method prints the contents of the `resultMap` in a readable format.
-   - It iterates over the `resultMap`, which contains the `YOUR_REFERENCE` as the key and a nested map (with column names as keys and corresponding values) as the value.
-   - The output will show `YOUR_REFERENCE` followed by the column names and their values for each entry in the map.
+1. **Dynamic Column Index Retrieval**:
+   - **`getColumnIndex(Sheet sheet, String columnName)`**: This method searches for the column index by name. It assumes the first row of the sheet contains headers. The method iterates through the first row, and when it finds a column name matching the provided name, it returns the index of that column.
+   
+2. **Column Index Usage**:
+   - For both Excel files (`file1` and `file2`), I used the `getColumnIndex` method to find the correct column index for `LOCAL_REFERENCE_NO`, `RESULT`, `YOUR_REFERENCE`, and other columns.
+   - This allows the program to dynamically adapt if the column positions change or if the column names are different.
+
+3. **Error Handling**:
+   - If the specified column name is not found, the `getColumnIndex` method throws an `IllegalArgumentException`. You may want to handle this exception appropriately in a production scenario.
+
+### Result Printing
+
+The `printResultMap` method remains unchanged and will print the contents of the `resultMap`, with `YOUR_REFERENCE` as the key and its corresponding data for each row.
 
 ### Sample Output
 
-If you have two files and the result is stored in the map, the printed output will look something like:
+The printed output remains the same as described before:
 
 ```
 Result Map (YOUR_REFERENCE -> Data):
@@ -157,4 +183,4 @@ YOUR_REFERENCE: ref67890
     FI_CHARGING_INDICATOR: FI456
 ```
 
-This way, you can easily inspect the contents of the map in the console.
+This ensures that the code works dynamically even if the column positions in the Excel files are modified.
