@@ -1,196 +1,160 @@
-To implement the solution you are asking for, we will break it down into a few steps:
+To print the map, you can use the `forEach` method to iterate over the map and print its contents in a readable format. The `resultMap` contains `YOUR_REFERENCE` as the key and another map with the column names as keys and their corresponding values as values. Here’s how you can modify the code to print the map:
 
-1. **Read the first Excel file and filter rows based on the "RESULT" column.**
-2. **Read the second Excel file and match rows based on the `LOCAL_REFERENCE_NO`.**
-3. **Store the data from the first Excel file in a map using `YOUR_REFERENCE` and `INITIAL_PRICE_ITEM_CD` as keys.**
-4. **Compare the data between the two files based on `LOCAL_REFERENCE_NO`.**
-5. **Perform the comparison twice to ensure the data matches correctly.**
-
-Let's start by reading the Excel files, storing data, and performing comparisons in Java.
-
-### 1. **Add Maven Dependencies**
-
-You will need the Apache POI library to read Excel files. Add this to your `pom.xml`:
-
-```xml
-<dependencies>
-    <dependency>
-        <groupId>org.apache.poi</groupId>
-        <artifactId>poi-ooxml</artifactId>
-        <version>5.2.3</version>
-    </dependency>
-</dependencies>
-```
-
-### 2. **Code to Read the Files and Perform the Required Actions**
-
-The following code does the following:
-
-- Reads the first Excel file and filters rows where `RESULT` is `"Incorrect Product Detected"`.
-- Reads the second Excel file and matches rows based on `LOCAL_REFERENCE_NO`.
-- Stores the data from the first file in a `Map<String, Map<String, String>>`, where the keys are `YOUR_REFERENCE` and `INITIAL_PRICE_ITEM_CD`.
-- Matches and compares the data between both files.
+### Code Update for Printing the Map
 
 ```java
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 
-public class ExcelComparison {
+public class ExcelProcessor {
 
-    public static void main(String[] args) {
-        String filePath1 = "path_to_your_first_excel_file.xlsx"; // First file path
-        String filePath2 = "path_to_your_second_excel_file.xlsx"; // Second file path
+    public static void main(String[] args) throws Exception {
+        String file1Path = "path/to/first/excel/file.xlsx";  // Path to the first Excel file
+        String file2Path = "path/to/second/excel/file.xlsx"; // Path to the second Excel file
 
-        Map<String, Map<String, String>> dataMapFromFile1 = new HashMap<>();
-        Map<String, Map<String, String>> dataMapFromFile2 = new HashMap<>();
+        // Read data from both Excel files
+        Map<String, Map<String, String>> resultMap = processExcelFiles(file1Path, file2Path);
 
-        try {
-            // Read first Excel file and filter rows based on RESULT column
-            readFirstFile(filePath1, dataMapFromFile1);
-            // Read second Excel file and match LOCAL_REFERENCE_NO
-            readSecondFile(filePath2, dataMapFromFile2);
-            
-            // Perform the comparison between both maps
-            compareData(dataMapFromFile1, dataMapFromFile2);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        // Print the result map
+        printResultMap(resultMap);
     }
 
-    // Method to read the first Excel file
-    private static void readFirstFile(String filePath, Map<String, Map<String, String>> dataMap) throws IOException {
-        try (FileInputStream fis = new FileInputStream(filePath);
-             Workbook workbook = new XSSFWorkbook(fis)) {
+    private static Map<String, Map<String, String>> processExcelFiles(String file1Path, String file2Path) throws Exception {
+        // Load the first Excel file (contains RESULT and LOCAL_REFERENCE_NO columns)
+        FileInputStream file1 = new FileInputStream(new File(file1Path));
+        Workbook workbook1 = new XSSFWorkbook(file1);
+        Sheet sheet1 = workbook1.getSheetAt(0);
 
-            Sheet sheet = workbook.getSheetAt(0);
-            Row headerRow = sheet.getRow(0);
-            int resultColumnIndex = -1, yourReferenceIndex = -1, initialPriceItemCdIndex = -1;
+        // Load the second Excel file (contains LOCAL_REFERENCE_NO and required data columns)
+        FileInputStream file2 = new FileInputStream(new File(file2Path));
+        Workbook workbook2 = new XSSFWorkbook(file2);
+        Sheet sheet2 = workbook2.getSheetAt(0);
 
-            List<String> columnNames = new ArrayList<>();
-            for (Cell cell : headerRow) {
-                String columnName = cell.getStringCellValue();
-                columnNames.add(columnName);
+        Map<String, Map<String, String>> resultMap = new HashMap<>();
 
-                if ("RESULT".equalsIgnoreCase(columnName)) resultColumnIndex = cell.getColumnIndex();
-                if ("YOUR_REFERENCE".equalsIgnoreCase(columnName)) yourReferenceIndex = cell.getColumnIndex();
-                if ("INITIAL_PRICE_ITEM_CD".equalsIgnoreCase(columnName)) initialPriceItemCdIndex = cell.getColumnIndex();
+        // Read columns of interest from the second file into a map
+        Map<String, List<String>> file2Data = new HashMap<>();
+        for (Row row : sheet2) {
+            String localReferenceNo = getCellValue(row, 0); // Assuming LOCAL_REFERENCE_NO is in the first column
+            if (localReferenceNo != null) {
+                List<String> rowData = new ArrayList<>();
+                rowData.add(getCellValue(row, 1)); // CHARGING_INDICATOR
+                rowData.add(getCellValue(row, 2)); // ORIG_AMOUNT_CURRENCY
+                rowData.add(getCellValue(row, 3)); // FINAL_MOP
+                rowData.add(getCellValue(row, 4)); // RECEIVER_BIC
+                rowData.add(getCellValue(row, 5)); // PSD_INDICATOR
+                rowData.add(getCellValue(row, 6)); // PAYMENT_DESTINATION_COUNTRY
+                rowData.add(getCellValue(row, 7)); // MESSAGE_TYPE
+                rowData.add(getCellValue(row, 8)); // DR_TRN_CODES
+                rowData.add(getCellValue(row, 9)); // CR_TRN_CODES
+                rowData.add(getCellValue(row, 10)); // FI_CHARGING_INDICATOR
+                file2Data.put(localReferenceNo, rowData);
             }
+        }
 
-            if (resultColumnIndex == -1 || yourReferenceIndex == -1 || initialPriceItemCdIndex == -1) {
-                throw new IllegalArgumentException("Required columns are missing in the first Excel file.");
-            }
+        // Iterate over the first file and process the rows with "Incorrect Product Detected" in RESULT column
+        for (Row row : sheet1) {
+            String result = getCellValue(row, 4);  // Assuming RESULT is in the 5th column (0-indexed)
+            String localReferenceNo = getCellValue(row, 0);  // Assuming LOCAL_REFERENCE_NO is in the first column
 
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                Row row = sheet.getRow(i);
-                if (row == null) continue;
+            if ("Incorrect Product Detected".equals(result) && localReferenceNo != null) {
+                String yourReference = getCellValue(row, 1); // Assuming YOUR_REFERENCE is in the second column
 
-                Cell resultCell = row.getCell(resultColumnIndex);
-                if (resultCell != null && "Incorrect Product Detected".equalsIgnoreCase(resultCell.toString())) {
-                    String yourReference = row.getCell(yourReferenceIndex).toString();
-                    String initialPriceItemCd = row.getCell(initialPriceItemCdIndex).toString();
+                // Retrieve corresponding data from the second file using LOCAL_REFERENCE_NO
+                List<String> correspondingData = file2Data.get(localReferenceNo);
+                if (correspondingData != null) {
+                    Map<String, String> mapForYourReference = new HashMap<>();
+                    mapForYourReference.put("CHARGING_INDICATOR", correspondingData.get(0));
+                    mapForYourReference.put("ORIG_AMOUNT_CURRENCY", correspondingData.get(1));
+                    mapForYourReference.put("FINAL_MOP", correspondingData.get(2));
+                    mapForYourReference.put("RECEIVER_BIC", correspondingData.get(3));
+                    mapForYourReference.put("PSD_INDICATOR", correspondingData.get(4));
+                    mapForYourReference.put("PAYMENT_DESTINATION_COUNTRY", correspondingData.get(5));
+                    mapForYourReference.put("MESSAGE_TYPE", correspondingData.get(6));
+                    mapForYourReference.put("DR_TRN_CODES", correspondingData.get(7));
+                    mapForYourReference.put("CR_TRN_CODES", correspondingData.get(8));
+                    mapForYourReference.put("FI_CHARGING_INDICATOR", correspondingData.get(9));
 
-                    Map<String, String> rowData = new HashMap<>();
-                    for (int j = 0; j < columnNames.size(); j++) {
-                        if (j == resultColumnIndex || j == yourReferenceIndex || j == initialPriceItemCdIndex) continue;
-                        rowData.put(columnNames.get(j), row.getCell(j) != null ? row.getCell(j).toString() : "");
-                    }
-
-                    // Combine YOUR_REFERENCE and INITIAL_PRICE_ITEM_CD to form the key
-                    String key = yourReference + "_" + initialPriceItemCd;
-                    dataMap.put(key, rowData);
+                    // Put the data in the result map with YOUR_REFERENCE as the key
+                    resultMap.put(yourReference, mapForYourReference);
                 }
             }
         }
+
+        workbook1.close();
+        workbook2.close();
+
+        return resultMap;
     }
 
-    // Method to read the second Excel file and match LOCAL_REFERENCE_NO
-    private static void readSecondFile(String filePath, Map<String, Map<String, String>> dataMap) throws IOException {
-        try (FileInputStream fis = new FileInputStream(filePath);
-             Workbook workbook = new XSSFWorkbook(fis)) {
-
-            Sheet sheet = workbook.getSheetAt(0);
-            Row headerRow = sheet.getRow(0);
-            int localReferenceNoIndex = -1;
-
-            List<String> columnNames = new ArrayList<>();
-            for (Cell cell : headerRow) {
-                String columnName = cell.getStringCellValue();
-                columnNames.add(columnName);
-
-                if ("LOCAL_REFERENCE_NO".equalsIgnoreCase(columnName)) {
-                    localReferenceNoIndex = cell.getColumnIndex();
-                }
-            }
-
-            if (localReferenceNoIndex == -1) {
-                throw new IllegalArgumentException("LOCAL_REFERENCE_NO column is missing in the second Excel file.");
-            }
-
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                Row row = sheet.getRow(i);
-                if (row == null) continue;
-
-                String localReferenceNo = row.getCell(localReferenceNoIndex).toString();
-                Map<String, String> rowData = new HashMap<>();
-                for (int j = 0; j < columnNames.size(); j++) {
-                    rowData.put(columnNames.get(j), row.getCell(j) != null ? row.getCell(j).toString() : "");
-                }
-
-                dataMap.put(localReferenceNo, rowData);
+    private static String getCellValue(Row row, int columnIndex) {
+        Cell cell = row.getCell(columnIndex);
+        if (cell != null) {
+            switch (cell.getCellType()) {
+                case STRING:
+                    return cell.getStringCellValue();
+                case NUMERIC:
+                    return String.valueOf(cell.getNumericCellValue());
+                default:
+                    return null;
             }
         }
+        return null;
     }
 
-    // Method to compare the data between both maps
-    private static void compareData(Map<String, Map<String, String>> dataMap1, Map<String, Map<String, String>> dataMap2) {
-        for (Map.Entry<String, Map<String, String>> entry1 : dataMap1.entrySet()) {
-            String key1 = entry1.getKey();
-            Map<String, String> values1 = entry1.getValue();
-
-            for (Map.Entry<String, Map<String, String>> entry2 : dataMap2.entrySet()) {
-                String key2 = entry2.getKey();
-                if (!key1.equals(key2)) continue; // Match LOCAL_REFERENCE_NO
-
-                Map<String, String> values2 = entry2.getValue();
-
-                // Compare the two datasets for each column
-                for (Map.Entry<String, String> column1 : values1.entrySet()) {
-                    String columnName = column1.getKey();
-                    String value1 = column1.getValue();
-                    String value2 = values2.getOrDefault(columnName, "");
-
-                    if (!value1.equals(value2)) {
-                        System.out.println("Mismatch in column '" + columnName + "' for key: " + key1);
-                        System.out.println("File 1: " + value1);
-                        System.out.println("File 2: " + value2);
-                    }
-                }
-            }
-        }
+    private static void printResultMap(Map<String, Map<String, String>> resultMap) {
+        // Print the map
+        System.out.println("Result Map (YOUR_REFERENCE -> Data):");
+        resultMap.forEach((yourReference, dataMap) -> {
+            System.out.println("\nYOUR_REFERENCE: " + yourReference);
+            dataMap.forEach((column, value) -> {
+                System.out.println("\t" + column + ": " + value);
+            });
+        });
     }
 }
 ```
 
-### Key Steps in the Code:
-1. **Reading the First Excel File:**
-   - Filters the rows based on the "RESULT" column to only include rows where `"Incorrect Product Detected"` is written.
-   - Stores the relevant data in `dataMapFromFile1`, using a composite key of `YOUR_REFERENCE` and `INITIAL_PRICE_ITEM_CD`.
+### Explanation of the Print Logic
 
-2. **Reading the Second Excel File:**
-   - Matches rows based on the `LOCAL_REFERENCE_NO` from the second Excel file.
-   - Stores data in `dataMapFromFile2`, where each entry is mapped by `LOCAL_REFERENCE_NO`.
+1. **`printResultMap` Method**:
+   - This method prints the contents of the `resultMap` in a readable format.
+   - It iterates over the `resultMap`, which contains the `YOUR_REFERENCE` as the key and a nested map (with column names as keys and corresponding values) as the value.
+   - The output will show `YOUR_REFERENCE` followed by the column names and their values for each entry in the map.
 
-3. **Comparing Data:**
-   - For each key in `dataMapFromFile1`, it compares the corresponding data in `dataMapFromFile2` for matching `LOCAL_REFERENCE_NO`.
-   - If any data mismatch is found, it is printed out.
+### Sample Output
 
-### How to Use:
-1. Replace `"path_to_your_first_excel_file.xlsx"` and `"path_to_your_second_excel_file.xlsx"` with the actual paths to your Excel files.
-2. Run the program to filter, compare, and print mismatched data.
+If you have two files and the result is stored in the map, the printed output will look something like:
 
-This solution compares the data from the two files, ensuring that you only compare the rows where `"Incorrect Product Detected"` is mentioned in the first file, based on the `LOCAL_REFERENCE_NO`.
+```
+Result Map (YOUR_REFERENCE -> Data):
+
+YOUR_REFERENCE: ref12345
+    CHARGING_INDICATOR: Indicator1
+    ORIG_AMOUNT_CURRENCY: USD
+    FINAL_MOP: MOP1
+    RECEIVER_BIC: BIC1
+    PSD_INDICATOR: IndicatorA
+    PAYMENT_DESTINATION_COUNTRY: US
+    MESSAGE_TYPE: Type1
+    DR_TRN_CODES: DR123
+    CR_TRN_CODES: CR123
+    FI_CHARGING_INDICATOR: FI123
+
+YOUR_REFERENCE: ref67890
+    CHARGING_INDICATOR: Indicator2
+    ORIG_AMOUNT_CURRENCY: EUR
+    FINAL_MOP: MOP2
+    RECEIVER_BIC: BIC2
+    PSD_INDICATOR: IndicatorB
+    PAYMENT_DESTINATION_COUNTRY: UK
+    MESSAGE_TYPE: Type2
+    DR_TRN_CODES: DR456
+    CR_TRN_CODES: CR456
+    FI_CHARGING_INDICATOR: FI456
+```
+
+This way, you can easily inspect the contents of the map in the console.
