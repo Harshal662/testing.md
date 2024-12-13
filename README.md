@@ -1,114 +1,98 @@
-This issue may occur due to subtle data differences, such as trailing spaces or mismatched data types. Here’s how to fix it:
+Here is a Java Maven code snippet to read an Excel file and store the data in a `Map<String, List<Map<String, String>>>` structure, where the key is the `BILING_CODE` and the values are lists of maps containing the rest of the column data. 
 
-### Updated Code
-The key updates ensure:
-1. Trimming whitespace from the cell values.
-2. Explicitly checking for `null` before comparisons.
-3. Avoiding type mismatches.
+You can use the Apache POI library to handle Excel files. Ensure you include the Apache POI dependency in your Maven `pom.xml`.
 
+### Maven Dependency
+Add this to your `pom.xml`:
+```xml
+<dependencies>
+    <dependency>
+        <groupId>org.apache.poi</groupId>
+        <artifactId>poi-ooxml</artifactId>
+        <version>5.2.3</version>
+    </dependency>
+</dependencies>
+```
+
+### Java Code
 ```java
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.*;
 
-public class ExcelProcessor {
+public class ExcelToMap {
+
     public static void main(String[] args) {
-        String inputFilePath = "path/to/your/input/file.xlsx";
-        String outputFilePath = "path/to/your/output/file.xlsx";
+        String filePath = "path_to_your_excel_file.xlsx"; // Replace with your Excel file path
+        Map<String, List<Map<String, String>>> dataMap = new HashMap<>();
 
-        try (FileInputStream fis = new FileInputStream(inputFilePath);
+        try (FileInputStream fis = new FileInputStream(filePath);
              Workbook workbook = new XSSFWorkbook(fis)) {
 
-            Sheet sheet = workbook.getSheetAt(0); // Assuming data is in the first sheet
-            int resultColIndex = sheet.getRow(0).getLastCellNum(); // Add RESULT column at the end
-
-            // Add a header for the new column
+            Sheet sheet = workbook.getSheetAt(0);
             Row headerRow = sheet.getRow(0);
-            Cell resultHeaderCell = headerRow.createCell(resultColIndex);
-            resultHeaderCell.setCellValue("RESULT");
+            int billingCodeIndex = -1;
+            List<String> columnNames = new ArrayList<>();
 
-            // Process rows
+            // Identify columns and find the index of BILING_CODE
+            for (Cell cell : headerRow) {
+                String columnName = cell.getStringCellValue();
+                columnNames.add(columnName);
+                if (columnName.equalsIgnoreCase("BILING_CODE")) {
+                    billingCodeIndex = cell.getColumnIndex();
+                }
+            }
+
+            if (billingCodeIndex == -1) {
+                throw new IllegalArgumentException("BILING_CODE column not found in the Excel sheet.");
+            }
+
+            // Iterate through rows and populate the map
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
-                Cell udfChar9Cell = row.getCell(getColumnIndex(sheet, "UDF_CHAR_9"));
-                Cell udfChar28Cell = row.getCell(getColumnIndex(sheet, "UDF_CHAR_28"));
-                Cell initialPriceItemCdCell = row.getCell(getColumnIndex(sheet, "INITIAL_PRICE_ITEM_CD"));
+                String billingCode = row.getCell(billingCodeIndex).getStringCellValue();
+                Map<String, String> rowData = new HashMap<>();
 
-                String udfChar9 = getCellValueAsString(udfChar9Cell);
-                String udfChar28 = getCellValueAsString(udfChar28Cell);
-                String initialPriceItemCd = getCellValueAsString(initialPriceItemCdCell);
-
-                Cell resultCell = row.createCell(resultColIndex);
-
-                if (udfChar9 == null || udfChar9.trim().isEmpty()) {
-                    resultCell.setCellValue("Transaction Missing");
-                } else if (udfChar28 != null && initialPriceItemCd != null 
-                           && udfChar28.trim().equals(initialPriceItemCd.trim())) {
-                    resultCell.setCellValue("Success");
-                } else {
-                    resultCell.setCellValue("Incorrect Product Detected");
+                for (int j = 0; j < row.getLastCellNum(); j++) {
+                    if (j == billingCodeIndex) continue; // Skip the key column
+                    Cell cell = row.getCell(j);
+                    String cellValue = cell != null ? cell.toString() : "";
+                    rowData.put(columnNames.get(j), cellValue);
                 }
-            }
 
-            // Save the updated workbook
-            try (FileOutputStream fos = new FileOutputStream(outputFilePath)) {
-                workbook.write(fos);
+                dataMap.computeIfAbsent(billingCode, k -> new ArrayList<>()).add(rowData);
             }
-
-            System.out.println("Processing complete. Results saved in: " + outputFilePath);
 
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
 
-    // Helper method to get the column index by column name
-    private static int getColumnIndex(Sheet sheet, String columnName) {
-        Row headerRow = sheet.getRow(0);
-        for (Cell cell : headerRow) {
-            if (columnName.equals(cell.getStringCellValue())) {
-                return cell.getColumnIndex();
+        // Print the map
+        for (Map.Entry<String, List<Map<String, String>>> entry : dataMap.entrySet()) {
+            System.out.println("BILING_CODE: " + entry.getKey());
+            for (Map<String, String> values : entry.getValue()) {
+                System.out.println(values);
             }
-        }
-        throw new IllegalArgumentException("Column " + columnName + " not found");
-    }
-
-    // Helper method to safely retrieve cell values as strings
-    private static String getCellValueAsString(Cell cell) {
-        if (cell == null) return null;
-        switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
-            case NUMERIC:
-                return String.valueOf(cell.getNumericCellValue());
-            case BOOLEAN:
-                return String.valueOf(cell.getBooleanCellValue());
-            case BLANK:
-                return null;
-            default:
-                return null;
+            System.out.println();
         }
     }
 }
 ```
 
-### Changes Made
-1. **Trim Values**: `trim()` ensures trailing/leading spaces are removed.
-2. **Null Safety**: Explicitly checks that both `UDF_CHAR_28` and `INITIAL_PRICE_ITEM_CD` are non-`null` before comparison.
-3. **String Comparison**: Used `.equals()` after `trim()` to ensure accurate string matching.
+### Explanation
+1. **Dependencies**: The code uses Apache POI to read Excel files.
+2. **Map Structure**: The map is structured as:
+   - Key: `BILING_CODE`
+   - Value: A list of maps containing the remaining column names and their respective values.
+3. **Logic**:
+   - The first row is treated as the header to get column names.
+   - Data rows are read and stored as key-value pairs in the nested map.
+   - If duplicate `BILING_CODE` values are found, their data is appended to the list of values.
+4. **Print Output**: Iterates over the map and prints the content for debugging.
 
-### Testing and Debugging
-1. Double-check your Excel file for any hidden characters or formatting issues (like spaces or newlines).
-2. If the problem persists, log the values being compared:
-
-```java
-System.out.println("Row " + i + ": UDF_CHAR_28='" + udfChar28 + "', INITIAL_PRICE_ITEM_CD='" + initialPriceItemCd + "'");
-```
-
-### Expected Output
-After running the updated code, the `RESULT` column should correctly classify rows as "Success" or "Incorrect Product Detected" based on your conditions.
+Replace `"path_to_your_excel_file.xlsx"` with the actual path to your Excel file, and this code should work seamlessly.
