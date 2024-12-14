@@ -1,4 +1,5 @@
-private static List<Map<String, String>> compareWithNahRules(List<Map<String, String>> outputData, Map<String, Map<String, String>> nahRulesMap) {
+
+   private static List<Map<String, String>> compareWithNahRules(List<Map<String, String>> outputData, Map<String, Map<String, String>> nahRulesMap) {
     List<Map<String, String>> results = new ArrayList<>();
 
     // Define the relevant columns for comparison (left side - output file, right side - nah rules)
@@ -94,3 +95,10 @@ private static boolean isValuePresent(String outputValue, String nahRuleValue) {
     Set<String> nahRuleSet = new HashSet<>(Arrays.asList(nahRuleValue.split("[,\\s]+")));
     return nahRuleSet.contains(outputValue.trim());
 }
+
+// Helper method to check if value in output is present in nah rules value
+private static boolean isValuePresent(String outputValue, String nahRuleValue) {
+    if (outputValue == null || nahRuleValue == null) {
+        return false;
+    }
+
