@@ -1,5 +1,35 @@
+```
+private static Map<String, List<Map<String, String>>> loadNahRules(Sheet sheet) {
+    Map<String, List<Map<String, String>>> nahRulesMap = new HashMap<>();
+    Row headerRow = sheet.getRow(0);
+    int billingCodeIndex = findColumnIndex(headerRow, "BILLING_CODE");
 
-   private static List<Map<String, String>> compareWithNahRules(List<Map<String, String>> outputData, Map<String, Map<String, String>> nahRulesMap) {
+    for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+        Row row = sheet.getRow(i);
+        if (row == null) continue;
+
+        String billingCode = getCellValue(row.getCell(billingCodeIndex));
+        if (billingCode == null || billingCode.isEmpty()) continue;
+
+        Map<String, String> columnValues = new HashMap<>();
+        for (int j = 0; j < row.getLastCellNum(); j++) {
+            if (j == billingCodeIndex) continue; // Skip the BILLING_CODE column
+            String header = getCellValue(headerRow.getCell(j));
+            String value = getCellValue(row.getCell(j));
+            columnValues.put(header, value);
+        }
+
+        // Add this entry to the list of billingCode entries
+        if (!nahRulesMap.containsKey(billingCode)) {
+            nahRulesMap.put(billingCode, new ArrayList<>());
+        }
+        nahRulesMap.get(billingCode).add(columnValues);
+    }
+    return nahRulesMap;
+}
+
+
+private static List<Map<String, String>> compareWithNahRules(List<Map<String, String>> outputData, Map<String, List<Map<String, String>>> nahRulesMap) {
     List<Map<String, String>> results = new ArrayList<>();
 
     // Define the relevant columns for comparison (left side - output file, right side - nah rules)
@@ -17,7 +47,7 @@
 
     for (Map<String, String> outputRow : outputData) {
         String billingCode = outputRow.get("YOUR_REFERENCE_NO");
-        Map<String, String> nahRuleRow = nahRulesMap.get(billingCode);
+        List<Map<String, String>> nahRuleRows = nahRulesMap.get(billingCode);
         Map<String, String> resultRow = new HashMap<>(outputRow);
 
         // Initialize the comparison result
@@ -27,27 +57,40 @@
         List<String> mismatchedColumnsCondition1 = new ArrayList<>();
         List<String> mismatchedColumnsCondition2 = new ArrayList<>();
 
-        boolean condition1Match = true;
-        boolean condition2Match = true;
+        boolean condition1Match = false;  // Initially set to false, we'll try to find a match
+        boolean condition2Match = true;   // Assume condition 2 is true initially
 
         // Condition 1: Compare based on the columns relevant to billingCode
-        if (nahRuleRow != null) {
-            for (Map.Entry<String, String> entry : columnMapping.entrySet()) {
-                String outputColumn = entry.getKey();
-                String nahRulesColumn = entry.getValue();
+        if (nahRuleRows != null) {
+            for (Map<String, String> nahRuleRow : nahRuleRows) {
+                boolean currentCondition1Match = true;
+                List<String> currentMismatchedColumns = new ArrayList<>();
 
-                String outputValue = outputRow.get(outputColumn);
-                String nahRuleValue = nahRuleRow.get(nahRulesColumn);
+                // Compare columns based on the defined mapping
+                for (Map.Entry<String, String> entry : columnMapping.entrySet()) {
+                    String outputColumn = entry.getKey();
+                    String nahRulesColumn = entry.getValue();
 
-                // Check if output value is present in the nah rules value
-                if (!isValuePresent(outputValue, nahRuleValue)) {
-                    condition1Match = false;
-                    mismatchedColumnsCondition1.add(outputColumn); // Add to mismatched columns for condition 1
+                    String outputValue = outputRow.get(outputColumn);
+                    String nahRuleValue = nahRuleRow.get(nahRulesColumn);
+
+                    // Check if output value is present in the nah rules value
+                    if (!isValuePresent(outputValue, nahRuleValue)) {
+                        currentCondition1Match = false;
+                        currentMismatchedColumns.add(outputColumn);  // Add to mismatched columns for condition 1
+                    }
+                }
+
+                if (currentCondition1Match) {
+                    condition1Match = true;  // We found a matching condition 1
+                    break;  // No need to check further nahRuleRows once a match is found
+                } else {
+                    mismatchedColumnsCondition1.addAll(currentMismatchedColumns);
                 }
             }
         }
 
-        // Condition 2: Compare based on INITIAL_PRICE_ITEM_CD
+        // Condition 2: Compare based on INITIAL_PRICE_ITEM_CD (same logic as previous)
         String initialPriceItemCd = outputRow.get("INITIAL_PRICE_ITEM_CD");
         Map<String, String> nahRulesForItemCd = nahRulesMap.get(initialPriceItemCd);
 
@@ -62,7 +105,7 @@
                 // Check if output value is present in the nah rules value for this item code
                 if (!isValuePresent(outputValue, nahRuleValue)) {
                     condition2Match = false;
-                    mismatchedColumnsCondition2.add(outputColumn); // Add to mismatched columns for condition 2
+                    mismatchedColumnsCondition2.add(outputColumn);  // Add to mismatched columns for condition 2
                 }
             }
         }
@@ -96,9 +139,4 @@ private static boolean isValuePresent(String outputValue, String nahRuleValue) {
     return nahRuleSet.contains(outputValue.trim());
 }
 
-// Helper method to check if value in output is present in nah rules value
-private static boolean isValuePresent(String outputValue, String nahRuleValue) {
-    if (outputValue == null || nahRuleValue == null) {
-        return false;
-    }
-
+```
