@@ -1,66 +1,176 @@
-To achieve your goal, you can create a third Java Maven project or file that calls the other two projects or classes. Below is an example demonstrating how you can do this:
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-### Assumptions
-1. **Code Structure:** The two existing Java Maven codes are structured as classes with a `getMap()` method that returns a `Map<String, String>`.
-2. **Dependencies:** Both codes are either in the same package or available as dependencies in your Maven project.
-3. **Execution:** The third code will instantiate these classes, call the `getMap()` method, and combine or print the results.
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
 
-Here’s the Java code for the third class:
+public class ExcelProcessor {
 
-```java
-import java.util.HashMap;
-import java.util.Map;
+    public static void main(String[] args) throws IOException {
+        String resultsFilePath = "results.xlsx";
+        String outputFilePath = "output.xlsx";
+        String nahRulesFilePath = "NAH-rules.xlsx";
+        String successFailureFilePath = "comparison_results.xlsx";
 
-public class CombineMaps {
+        // Load Excel files
+        Workbook resultsWorkbook = new XSSFWorkbook(new FileInputStream(resultsFilePath));
+        Workbook outputWorkbook = new XSSFWorkbook(new FileInputStream(outputFilePath));
+        Workbook nahRulesWorkbook = new XSSFWorkbook(new FileInputStream(nahRulesFilePath));
 
-    public static void main(String[] args) {
-        // Instantiate the classes from the two Maven projects
-        FirstClass firstInstance = new FirstClass();
-        SecondClass secondInstance = new SecondClass();
+        // Extract required sheets
+        Sheet resultsSheet = resultsWorkbook.getSheetAt(0);
+        Sheet outputSheet = outputWorkbook.getSheetAt(0);
+        Sheet nahRulesSheet = nahRulesWorkbook.getSheetAt(0);
 
-        // Call the methods to get the maps
-        Map<String, String> firstMap = firstInstance.getMap();
-        Map<String, String> secondMap = secondInstance.getMap();
+        // Get NAH-Rules data
+        Map<String, Map<String, String>> nahRulesMap = loadNahRules(nahRulesSheet);
 
-        // Combine or print the maps
-        System.out.println("Map from FirstClass: " + firstMap);
-        System.out.println("Map from SecondClass: " + secondMap);
+        // Filter "Incorrect Product Detected" rows from Results file
+        List<String> filteredLocalRefNos = filterResults(resultsSheet);
 
-        // Combine both maps into a single map
-        Map<String, String> combinedMap = new HashMap<>();
-        combinedMap.putAll(firstMap);
-        combinedMap.putAll(secondMap);
+        // Match and compare Output file rows based on filtered Local Reference Nos
+        List<Map<String, String>> outputData = loadOutputData(outputSheet, filteredLocalRefNos);
 
-        // Print the combined map
-        System.out.println("Combined Map: " + combinedMap);
+        // Compare with NAH-Rules
+        List<Map<String, String>> comparisonResults = compareWithNahRules(outputData, nahRulesMap);
+
+        // Write results to Success/Failure file
+        writeComparisonResults(comparisonResults, successFailureFilePath);
+
+        // Close all workbooks
+        resultsWorkbook.close();
+        outputWorkbook.close();
+        nahRulesWorkbook.close();
+    }
+
+    private static Map<String, Map<String, String>> loadNahRules(Sheet sheet) {
+        Map<String, Map<String, String>> nahRulesMap = new HashMap<>();
+        Row headerRow = sheet.getRow(0);
+        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            Row row = sheet.getRow(i);
+            if (row == null) continue;
+            
+            String billingCode = row.getCell(0).getStringCellValue();
+            Map<String, String> columnValues = new HashMap<>();
+            for (int j = 1; j < row.getLastCellNum(); j++) {
+                String header = headerRow.getCell(j).getStringCellValue();
+                String value = row.getCell(j).getStringCellValue();
+                columnValues.put(header, value);
+            }
+            nahRulesMap.put(billingCode, columnValues);
+        }
+        return nahRulesMap;
+    }
+
+    private static List<String> filterResults(Sheet sheet) {
+        List<String> filteredLocalRefNos = new ArrayList<>();
+        int localRefIndex = findColumnIndex(sheet.getRow(0), "LOCAL_REFERENCE_NO");
+        int resultIndex = findColumnIndex(sheet.getRow(0), "RESULT");
+
+        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            Row row = sheet.getRow(i);
+            if (row == null) continue;
+            String result = row.getCell(resultIndex).getStringCellValue();
+            if ("Incorrect Product Detected".equals(result)) {
+                filteredLocalRefNos.add(row.getCell(localRefIndex).getStringCellValue());
+            }
+        }
+        return filteredLocalRefNos;
+    }
+
+    private static List<Map<String, String>> loadOutputData(Sheet sheet, List<String> filteredLocalRefNos) {
+        List<Map<String, String>> outputData = new ArrayList<>();
+        Row headerRow = sheet.getRow(0);
+        
+        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            Row row = sheet.getRow(i);
+            if (row == null) continue;
+            String localRefNo = row.getCell(0).getStringCellValue();
+            if (filteredLocalRefNos.contains(localRefNo)) {
+                Map<String, String> rowData = new HashMap<>();
+                for (int j = 0; j < row.getLastCellNum(); j++) {
+                    String header = headerRow.getCell(j).getStringCellValue();
+                    String value = row.getCell(j).getStringCellValue();
+                    rowData.put(header, value);
+                }
+                outputData.add(rowData);
+            }
+        }
+        return outputData;
+    }
+
+    private static List<Map<String, String>> compareWithNahRules(List<Map<String, String>> outputData, Map<String, Map<String, String>> nahRulesMap) {
+        List<Map<String, String>> results = new ArrayList<>();
+
+        // Define the relevant columns for comparison
+        List<String> relevantColumns = Arrays.asList(
+                "CHARGING_INDICATOR", "ORIG_AMOUNT_CURRENCY", "FINAL_MOP", "RECEIVER_BIC",
+                "PSD_INDICATOR", "PAYMENT_DESTINATION_COUNTRY", "MESSAGE_TYPE",
+                "DR_TRN_CODES", "CR_TRN_CODES", "FI_CHARGING_INDICATOR"
+        );
+
+        for (Map<String, String> outputRow : outputData) {
+            String billingCode = outputRow.get("YOUR_REFERENCE_NO");
+            Map<String, String> nahRuleRow = nahRulesMap.get(billingCode);
+            Map<String, String> resultRow = new HashMap<>(outputRow);
+            resultRow.put("Comparison Result", "Failure");
+
+            if (nahRuleRow != null) {
+                boolean allMatch = true;
+                for (String key : relevantColumns) {
+                    if (!Objects.equals(outputRow.get(key), nahRuleRow.get(key))) {
+                        allMatch = false;
+                        break;
+                    }
+                }
+                if (allMatch) {
+                    resultRow.put("Comparison Result", "Success");
+                }
+            }
+            results.add(resultRow);
+        }
+        return results;
+    }
+
+    private static void writeComparisonResults(List<Map<String, String>> results, String filePath) throws IOException {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("Results");
+
+        // Write header row
+        if (!results.isEmpty()) {
+            Row headerRow = sheet.createRow(0);
+            int colIndex = 0;
+            for (String key : results.get(0).keySet()) {
+                headerRow.createCell(colIndex++).setCellValue(key);
+            }
+
+            // Write data rows
+            int rowIndex = 1;
+            for (Map<String, String> result : results) {
+                Row row = sheet.createRow(rowIndex++);
+                colIndex = 0;
+                for (String key : result.keySet()) {
+                    row.createCell(colIndex++).setCellValue(result.get(key));
+                }
+            }
+        }
+
+        try (FileOutputStream fos = new FileOutputStream(filePath)) {
+            workbook.write(fos);
+        }
+        workbook.close();
+    }
+
+    private static int findColumnIndex(Row row, String columnName) {
+        for (int i = 0; i < row.getLastCellNum(); i++) {
+            if (row.getCell(i).getStringCellValue().equals(columnName)) {
+                return i;
+            }
+        }
+        throw new IllegalArgumentException("Column not found: " + columnName);
     }
 }
-```
-
-### Steps to Implement
-1. **Add Dependencies (if needed):**  
-   If the first two codes are in separate Maven projects, add them as dependencies in the `pom.xml` of the third project:
-   ```xml
-   <dependency>
-       <groupId>com.example</groupId>
-       <artifactId>first-project</artifactId>
-       <version>1.0-SNAPSHOT</version>
-   </dependency>
-   <dependency>
-       <groupId>com.example</groupId>
-       <artifactId>second-project</artifactId>
-       <version>1.0-SNAPSHOT</version>
-   </dependency>
-   ```
-
-2. **Ensure Package Structure:**  
-   Make sure the packages are correctly imported in the third class. Use the correct import statements for `FirstClass` and `SecondClass`.
-
-3. **Compile and Run:**  
-   - Build all three Maven projects using `mvn clean install`.
-   - Execute the `CombineMaps` class to see the output.
-
-### Customizations
-If the two codes take input parameters or require specific setups (like database connections or configuration files), you need to include those setups in your third code.
-
-Feel free to share more details about your specific setup if further customization is needed!
