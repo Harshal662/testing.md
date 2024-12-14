@@ -1,46 +1,55 @@
-To modify the `loadNahRules` method to extract all columns except the specified ones, you can filter out the unwanted column names when building the `columnValues` map. Here's the updated method:
-
-### Updated `loadNahRules` Method:
-```java
-private static Map<String, Map<String, String>> loadNahRules(Sheet sheet) {
-    Map<String, Map<String, String>> nahRulesMap = new HashMap<>();
+private static List<Map<String, String>> loadOutputData(Sheet sheet, List<String> filteredLocalRefNos, Sheet resultsSheet) {
+    List<Map<String, String>> outputData = new ArrayList<>();
     Row headerRow = sheet.getRow(0);
 
-    // Define the columns to exclude
-    List<String> excludedColumns = Arrays.asList(
-        "TRN_CODE_CHECK", "SEARCH_BIC", "SEARCH_BIC_PATTERN", 
-        "REMARKS", "Dup Check(Variants should not be considered Duplicates)"
+    // Define the required column names
+    List<String> requiredColumns = Arrays.asList(
+            "CHARGING_INDICATOR", "ORIG_AMOUNT_CURRENCY", "FINAL_MOP", "RECEIVER_BIC",
+            "PSD_INDICATOR", "PAYMENT_DESTINATION_COUNTRY", "MESSAGE_TYPE",
+            "DR_TRN_CODES", "CR_TRN_CODES", "FI_CHARGING_INDICATOR", "LOCAL_REFERENCE_NO"
     );
 
-    int billingCodeIndex = findColumnIndex(headerRow, "BILLING_CODE");
+    // Create a map of required column names to their indices
+    Map<String, Integer> columnIndexMap = new HashMap<>();
+    for (int j = 0; j < headerRow.getLastCellNum(); j++) {
+        String columnName = getCellValue(headerRow.getCell(j));
+        if (requiredColumns.contains(columnName)) {
+            columnIndexMap.put(columnName, j);
+        }
+    }
+
+    // Find the INITIAL_PRICE_ITEM column index in the resultsSheet
+    int initialPriceItemIndex = findColumnIndex(resultsSheet.getRow(0), "INITIAL_PRICE_ITEM");
 
     for (int i = 1; i <= sheet.getLastRowNum(); i++) {
         Row row = sheet.getRow(i);
         if (row == null) continue;
 
-        String billingCode = getCellValue(row.getCell(billingCodeIndex));
-        if (billingCode == null || billingCode.isEmpty()) continue;
+        String localRefNo = getCellValue(row.getCell(columnIndexMap.get("LOCAL_REFERENCE_NO")));
+        if (filteredLocalRefNos.contains(localRefNo)) {
+            Map<String, String> rowData = new HashMap<>();
+            for (Map.Entry<String, Integer> entry : columnIndexMap.entrySet()) {
+                String columnName = entry.getKey();
+                int colIndex = entry.getValue();
+                String value = getCellValue(row.getCell(colIndex));
+                rowData.put(columnName, value);
+            }
 
-        Map<String, String> columnValues = new HashMap<>();
-        for (int j = 0; j < row.getLastCellNum(); j++) {
-            if (j == billingCodeIndex) continue; // Skip the BILLING_CODE column
-            String header = getCellValue(headerRow.getCell(j));
-            if (excludedColumns.contains(header)) continue; // Skip excluded columns
-            String value = getCellValue(row.getCell(j));
-            columnValues.put(header, value);
+            // Find the corresponding INITIAL_PRICE_ITEM value from the resultsSheet
+            for (int j = 1; j <= resultsSheet.getLastRowNum(); j++) {
+                Row resultRow = resultsSheet.getRow(j);
+                if (resultRow == null) continue;
+
+                String resultLocalRefNo = getCellValue(resultRow.getCell(findColumnIndex(resultRow, "LOCAL_REFERENCE_NO")));
+                if (localRefNo.equals(resultLocalRefNo)) {
+                    String initialPriceItem = getCellValue(resultRow.getCell(initialPriceItemIndex));
+                    rowData.put("INITIAL_PRICE_ITEM", initialPriceItem); // Add INITIAL_PRICE_ITEM to the rowData
+                    break; // No need to continue once we find the matching LOCAL_REFERENCE_NO
+                }
+            }
+
+            outputData.add(rowData);
         }
-        nahRulesMap.put(billingCode, columnValues);
     }
-    return nahRulesMap;
+    return outputData;
 }
-```
-
-### Key Changes:
-1. **Exclude Columns**:
-   - Added an `excludedColumns` list containing the column names to ignore.
-2. **Filter Columns**:
-   - Skipped columns in the loop if the header matches an excluded column name.
-3. **Preserve All Other Columns**:
-   - All columns except the excluded ones are added to the `columnValues` map.
-
-This ensures that the `nahRulesMap` contains all the required data without the excluded columns.
