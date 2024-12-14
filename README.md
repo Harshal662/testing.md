@@ -1,49 +1,46 @@
-To modify the `loadOutputData` method to extract only the specified columns instead of all columns, you can filter the `columnIndexMap` to retain only the desired column names. Here's the updated method:
+To modify the `loadNahRules` method to extract all columns except the specified ones, you can filter out the unwanted column names when building the `columnValues` map. Here's the updated method:
 
+### Updated `loadNahRules` Method:
 ```java
-private static List<Map<String, String>> loadOutputData(Sheet sheet, List<String> filteredLocalRefNos) {
-    List<Map<String, String>> outputData = new ArrayList<>();
+private static Map<String, Map<String, String>> loadNahRules(Sheet sheet) {
+    Map<String, Map<String, String>> nahRulesMap = new HashMap<>();
     Row headerRow = sheet.getRow(0);
 
-    // Define the required column names
-    List<String> requiredColumns = Arrays.asList(
-        "CHARGING_INDICATOR", "ORIG_AMOUNT_CURRENCY", "FINAL_MOP", "RECEIVER_BIC",
-        "PSD_INDICATOR", "PAYMENT_DESTINATION_COUNTRY", "MESSAGE_TYPE",
-        "DR_TRN_CODES", "CR_TRN_CODES", "FI_CHARGING_INDICATOR", "LOCAL_REFERENCE_NO"
+    // Define the columns to exclude
+    List<String> excludedColumns = Arrays.asList(
+        "TRN_CODE_CHECK", "SEARCH_BIC", "SEARCH_BIC_PATTERN", 
+        "REMARKS", "Dup Check(Variants should not be considered Duplicates)"
     );
 
-    // Create a map of required column names to their indices
-    Map<String, Integer> columnIndexMap = new HashMap<>();
-    for (int j = 0; j < headerRow.getLastCellNum(); j++) {
-        String columnName = getCellValue(headerRow.getCell(j));
-        if (requiredColumns.contains(columnName)) {
-            columnIndexMap.put(columnName, j);
-        }
-    }
+    int billingCodeIndex = findColumnIndex(headerRow, "BILLING_CODE");
 
     for (int i = 1; i <= sheet.getLastRowNum(); i++) {
         Row row = sheet.getRow(i);
         if (row == null) continue;
 
-        String localRefNo = getCellValue(row.getCell(columnIndexMap.get("LOCAL_REFERENCE_NO")));
-        if (filteredLocalRefNos.contains(localRefNo)) {
-            Map<String, String> rowData = new HashMap<>();
-            for (Map.Entry<String, Integer> entry : columnIndexMap.entrySet()) {
-                String columnName = entry.getKey();
-                int colIndex = entry.getValue();
-                String value = getCellValue(row.getCell(colIndex));
-                rowData.put(columnName, value);
-            }
-            outputData.add(rowData);
+        String billingCode = getCellValue(row.getCell(billingCodeIndex));
+        if (billingCode == null || billingCode.isEmpty()) continue;
+
+        Map<String, String> columnValues = new HashMap<>();
+        for (int j = 0; j < row.getLastCellNum(); j++) {
+            if (j == billingCodeIndex) continue; // Skip the BILLING_CODE column
+            String header = getCellValue(headerRow.getCell(j));
+            if (excludedColumns.contains(header)) continue; // Skip excluded columns
+            String value = getCellValue(row.getCell(j));
+            columnValues.put(header, value);
         }
+        nahRulesMap.put(billingCode, columnValues);
     }
-    return outputData;
+    return nahRulesMap;
 }
 ```
 
 ### Key Changes:
-1. **Filter Columns**: Added a `requiredColumns` list to specify the columns that should be extracted.
-2. **Map Filtering**: The `columnIndexMap` now only includes indices of the required columns.
-3. **Extraction**: During row processing, only the required columns are fetched and added to `rowData`.
+1. **Exclude Columns**:
+   - Added an `excludedColumns` list containing the column names to ignore.
+2. **Filter Columns**:
+   - Skipped columns in the loop if the header matches an excluded column name.
+3. **Preserve All Other Columns**:
+   - All columns except the excluded ones are added to the `columnValues` map.
 
-This ensures that only the specified columns are included in the output, meeting your requirement.
+This ensures that the `nahRulesMap` contains all the required data without the excluded columns.
