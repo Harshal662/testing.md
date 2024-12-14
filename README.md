@@ -1,48 +1,49 @@
-private static List<Map<String, String>> compareWithNahRules(List<Map<String, String>> outputData, Map<String, Map<String, String>> nahRulesMap) {
-    List<Map<String, String>> results = new ArrayList<>();
+To modify the `loadOutputData` method to extract only the specified columns instead of all columns, you can filter the `columnIndexMap` to retain only the desired column names. Here's the updated method:
 
-    // Define the relevant columns for comparison
-    List<String> relevantColumns = Arrays.asList(
-            "CHARGING_INDICATOR", "ORIG_AMOUNT_CURRENCY", "FINAL_MOP", "RECEIVER_BIC",
-            "PSD_INDICATOR", "PAYMENT_DESTINATION_COUNTRY", "MESSAGE_TYPE",
-            "DR_TRN_CODES", "CR_TRN_CODES", "FI_CHARGING_INDICATOR"
+```java
+private static List<Map<String, String>> loadOutputData(Sheet sheet, List<String> filteredLocalRefNos) {
+    List<Map<String, String>> outputData = new ArrayList<>();
+    Row headerRow = sheet.getRow(0);
+
+    // Define the required column names
+    List<String> requiredColumns = Arrays.asList(
+        "CHARGING_INDICATOR", "ORIG_AMOUNT_CURRENCY", "FINAL_MOP", "RECEIVER_BIC",
+        "PSD_INDICATOR", "PAYMENT_DESTINATION_COUNTRY", "MESSAGE_TYPE",
+        "DR_TRN_CODES", "CR_TRN_CODES", "FI_CHARGING_INDICATOR", "LOCAL_REFERENCE_NO"
     );
 
-    for (Map<String, String> outputRow : outputData) {
-        String billingCode = outputRow.get("YOUR_REFERENCE_NO");
-        Map<String, String> nahRuleRow = nahRulesMap.get(billingCode);
-        Map<String, String> resultRow = new HashMap<>(outputRow);
-
-        // Initialize the comparison result
-        resultRow.put("Comparison Result", "Failure");
-
-        // Initialize a list to keep track of mismatched columns
-        List<String> mismatchedColumns = new ArrayList<>();
-
-        if (nahRuleRow != null) {
-            boolean allMatch = true;
-            for (String key : relevantColumns) {
-                String outputValue = outputRow.get(key);
-                String nahRuleValue = nahRuleRow.get(key);
-
-                if (!Objects.equals(outputValue, nahRuleValue)) {
-                    allMatch = false;
-                    mismatchedColumns.add(key); // Add the mismatched column to the list
-                }
-            }
-
-            // If all relevant columns match, set the result to "Success"
-            if (allMatch) {
-                resultRow.put("Comparison Result", "Success");
-            }
+    // Create a map of required column names to their indices
+    Map<String, Integer> columnIndexMap = new HashMap<>();
+    for (int j = 0; j < headerRow.getLastCellNum(); j++) {
+        String columnName = getCellValue(headerRow.getCell(j));
+        if (requiredColumns.contains(columnName)) {
+            columnIndexMap.put(columnName, j);
         }
-
-        // Add the mismatched columns to the result row, if any
-        if (!mismatchedColumns.isEmpty()) {
-            resultRow.put("Mismatched Columns", String.join(", ", mismatchedColumns));
-        }
-
-        results.add(resultRow);
     }
-    return results;
+
+    for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+        Row row = sheet.getRow(i);
+        if (row == null) continue;
+
+        String localRefNo = getCellValue(row.getCell(columnIndexMap.get("LOCAL_REFERENCE_NO")));
+        if (filteredLocalRefNos.contains(localRefNo)) {
+            Map<String, String> rowData = new HashMap<>();
+            for (Map.Entry<String, Integer> entry : columnIndexMap.entrySet()) {
+                String columnName = entry.getKey();
+                int colIndex = entry.getValue();
+                String value = getCellValue(row.getCell(colIndex));
+                rowData.put(columnName, value);
+            }
+            outputData.add(rowData);
+        }
+    }
+    return outputData;
 }
+```
+
+### Key Changes:
+1. **Filter Columns**: Added a `requiredColumns` list to specify the columns that should be extracted.
+2. **Map Filtering**: The `columnIndexMap` now only includes indices of the required columns.
+3. **Extraction**: During row processing, only the required columns are fetched and added to `rowData`.
+
+This ensures that only the specified columns are included in the output, meeting your requirement.
