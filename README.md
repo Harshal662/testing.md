@@ -54,11 +54,11 @@ public class ExcelProcessor {
             Row row = sheet.getRow(i);
             if (row == null) continue;
             
-            String billingCode = row.getCell(0).getStringCellValue();
+            String billingCode = getCellValue(row.getCell(0));
             Map<String, String> columnValues = new HashMap<>();
             for (int j = 1; j < row.getLastCellNum(); j++) {
-                String header = headerRow.getCell(j).getStringCellValue();
-                String value = row.getCell(j).getStringCellValue();
+                String header = getCellValue(headerRow.getCell(j));
+                String value = getCellValue(row.getCell(j));
                 columnValues.put(header, value);
             }
             nahRulesMap.put(billingCode, columnValues);
@@ -74,9 +74,9 @@ public class ExcelProcessor {
         for (int i = 1; i <= sheet.getLastRowNum(); i++) {
             Row row = sheet.getRow(i);
             if (row == null) continue;
-            String result = row.getCell(resultIndex).getStringCellValue();
+            String result = getCellValue(row.getCell(resultIndex));
             if ("Incorrect Product Detected".equals(result)) {
-                filteredLocalRefNos.add(row.getCell(localRefIndex).getStringCellValue());
+                filteredLocalRefNos.add(getCellValue(row.getCell(localRefIndex)));
             }
         }
         return filteredLocalRefNos;
@@ -89,12 +89,12 @@ public class ExcelProcessor {
         for (int i = 1; i <= sheet.getLastRowNum(); i++) {
             Row row = sheet.getRow(i);
             if (row == null) continue;
-            String localRefNo = row.getCell(0).getStringCellValue();
+            String localRefNo = getCellValue(row.getCell(0));
             if (filteredLocalRefNos.contains(localRefNo)) {
                 Map<String, String> rowData = new HashMap<>();
                 for (int j = 0; j < row.getLastCellNum(); j++) {
-                    String header = headerRow.getCell(j).getStringCellValue();
-                    String value = row.getCell(j).getStringCellValue();
+                    String header = getCellValue(headerRow.getCell(j));
+                    String value = getCellValue(row.getCell(j));
                     rowData.put(header, value);
                 }
                 outputData.add(rowData);
@@ -172,5 +172,25 @@ public class ExcelProcessor {
             }
         }
         throw new IllegalArgumentException("Column not found: " + columnName);
+    }
+
+    private static String getCellValue(Cell cell) {
+        if (cell == null) return "";
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue();
+            case NUMERIC:
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getDateCellValue().toString();
+                } else {
+                    return String.valueOf((int) cell.getNumericCellValue());
+                }
+            case BOOLEAN:
+                return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA:
+                return cell.getCellFormula();
+            default:
+                return "";
+        }
     }
 }
