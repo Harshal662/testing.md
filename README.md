@@ -12,89 +12,136 @@ Let’s improve the logic to handle both cases correctly:
 ### Updated Java Code
 
 ```java
-package com.example.stringformatter;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-public class StringFormatter {
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.*;
 
-    /**
-     * Processes the input string based on the specified transformations:
-     * 1. Replace "<>" with "not".
-     * 2. Remove trailing "s" from words.
-     * 3. Remove "IN" if the string starts with it.
-     * 4. Handles parentheses correctly for both types (with or without "<>").
-     *
-     * @param input the input string to process
-     * @return the transformed string
-     */
-    public static String formatString(String input) {
-        // Remove "IN" at the beginning if present
-        if (input.startsWith("IN ")) {
-            input = input.substring(3).trim();
+public class MapToExcel {
+
+    public static void main(String[] args) throws IOException {
+        // Sample data structure
+        Map<String, List<Map<String, String>>> data = new HashMap<>();
+        
+        data.put("PET2435", Arrays.asList(
+                Map.of(
+                        "Type", "Data",
+                        "YOUR_REFERENCE", "Ref123",
+                        "CHARGING_INDICATOR", "Yes",
+                        "ORIG_AMOUNT_CURRENCY", "USD",
+                        "FINAL_MOP", "Wire",
+                        "RECEIVER_BIC", "BIC12345",
+                        "PSD_INDICATOR", "Active",
+                        "PAYMENT_DESTINATION_COUNTRY", "US",
+                        "MESSAGE_TYPE", "MT103",
+                        "DR_TRN_CODES", "CodeD1",
+                        "CR_TRN_CODES", "CodeC1",
+                        "FI_CHARGING_INDICATOR", "Indicator1"
+                ),
+                Map.of(
+                        "Type", "Rule",
+                        "BILLING_CODE", "BC123",
+                        "CHARGING_INDICATOR", "No",
+                        "CURRENCY", "EUR",
+                        "FINALMOP", "Check",
+                        "RECEIVER_BIC", "BIC54321",
+                        "PSD_INDICATOR", "Inactive",
+                        "PAYMENT_DESTINATION_COUNTRY", "FR",
+                        "MESSAGE_TYPE", "MT202",
+                        "DR_TRAN_CODE", "CodeD2",
+                        "CR_TRAN_CODE", "CodeC2",
+                        "FI_CHARGING_INDICATOR", "Indicator2",
+                        "DETECTION_PRIORITY", "High"
+                ),
+                Map.of(
+                        "Type", "Rule",
+                        "BILLING_CODE", "BC456",
+                        "CHARGING_INDICATOR", "Yes",
+                        "CURRENCY", "GBP",
+                        "FINALMOP", "Cash",
+                        "RECEIVER_BIC", "BIC67890",
+                        "PSD_INDICATOR", "Active",
+                        "PAYMENT_DESTINATION_COUNTRY", "UK",
+                        "MESSAGE_TYPE", "MT101",
+                        "DR_TRAN_CODE", "CodeD3",
+                        "CR_TRAN_CODE", "CodeC3",
+                        "FI_CHARGING_INDICATOR", "Indicator3",
+                        "DETECTION_PRIORITY", "Low"
+                )
+        ));
+
+        // Define column headers
+        String[] headers = {
+                "Type", "LOCAL_REFERENCE_NO", "BILLING_CODE", "CHARGING_INDICATOR", "CURRENCY",
+                "FINAL_MOP", "RECEIVER_BIC", "PSD_INDICATOR", "PYMT_DEST_CTRY", "SWIFT_MSG_TYP",
+                "DR_TRN_CODES", "CR_TRN_CODES", "FI_CHARGING_INDICATOR", "Priority Order"
+        };
+
+        // Create workbook and sheet
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("Data");
+
+        // Write header row
+        Row headerRow = sheet.createRow(0);
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
         }
 
-        // Replace "<>" with "not"
-        input = input.replace("<>", "not");
+        // Write data rows
+        int rowIndex = 1;
+        for (Map.Entry<String, List<Map<String, String>>> entry : data.entrySet()) {
+            String localReferenceNo = entry.getKey();
+            List<Map<String, String>> maps = entry.getValue();
 
-        // Handle content inside parentheses
-        if (input.contains("(") && input.contains(")")) {
-            String beforeParenthesis = input.substring(0, input.indexOf('(')).trim();
-            String insideParenthesis = input.substring(input.indexOf('(') + 1, input.indexOf(')')).trim();
+            for (int i = 0; i < maps.size(); i++) {
+                Map<String, String> map = maps.get(i);
+                Row row = sheet.createRow(rowIndex++);
 
-            // Format inside parentheses
-            insideParenthesis = formatInsideParentheses(insideParenthesis);
+                // Use the naming convention to fetch the correct keys
+                String billingCodeKey = i == 0 ? "YOUR_REFERENCE" : "BILLING_CODE";
+                String currencyKey = i == 0 ? "ORIG_AMOUNT_CURRENCY" : "CURRENCY";
+                String finalMopKey = i == 0 ? "FINAL_MOP" : "FINALMOP";
+                String drTranCodeKey = i == 0 ? "DR_TRN_CODES" : "DR_TRAN_CODE";
+                String crTranCodeKey = i == 0 ? "CR_TRN_CODES" : "CR_TRAN_CODE";
+                String detectionPriorityKey = i == 0 ? "NA" : "DETECTION_PRIORITY";
 
-            // Rebuild the string
-            input = beforeParenthesis + " (" + insideParenthesis + ")";
-        } else {
-            // Format the whole string if no parentheses are involved
-            input = formatInsideParentheses(input);
-        }
-
-        return input;
-    }
-
-    /**
-     * Helper method to handle text inside parentheses or the whole string, 
-     * replacing "<>" with "not" and removing trailing "s" from words.
-     *
-     * @param input the string (either inside parentheses or the whole string)
-     * @return the formatted content
-     */
-    private static String formatInsideParentheses(String input) {
-        String[] items = input.split(", ");
-        StringBuilder formattedInside = new StringBuilder();
-
-        for (String item : items) {
-            // Remove the trailing "s" from each item if present
-            if (item.endsWith("s")) {
-                item = item.substring(0, item.length() - 1);
+                row.createCell(0).setCellValue(map.getOrDefault("Type", ""));
+                row.createCell(1).setCellValue(localReferenceNo);
+                row.createCell(2).setCellValue(map.getOrDefault(billingCodeKey, ""));
+                row.createCell(3).setCellValue(map.getOrDefault("CHARGING_INDICATOR", ""));
+                row.createCell(4).setCellValue(map.getOrDefault(currencyKey, ""));
+                row.createCell(5).setCellValue(map.getOrDefault(finalMopKey, ""));
+                row.createCell(6).setCellValue(map.getOrDefault("RECEIVER_BIC", ""));
+                row.createCell(7).setCellValue(map.getOrDefault("PSD_INDICATOR", ""));
+                row.createCell(8).setCellValue(map.getOrDefault("PAYMENT_DESTINATION_COUNTRY", ""));
+                row.createCell(9).setCellValue(map.getOrDefault("MESSAGE_TYPE", ""));
+                row.createCell(10).setCellValue(map.getOrDefault(drTranCodeKey, ""));
+                row.createCell(11).setCellValue(map.getOrDefault(crTranCodeKey, ""));
+                row.createCell(12).setCellValue(map.getOrDefault("FI_CHARGING_INDICATOR", ""));
+                row.createCell(13).setCellValue(map.getOrDefault(detectionPriorityKey, "NA"));
             }
-
-            // Prepend "not" if needed
-            if (item.contains("<>")) {
-                item = item.replace("<>", "not");
-            }
-
-            formattedInside.append(item).append(", ");
         }
 
-        // Remove the last comma and space if present
-        if (formattedInside.length() > 0) {
-            formattedInside.setLength(formattedInside.length() - 2);
+        // Auto-size columns
+        for (int i = 0; i < headers.length; i++) {
+            sheet.autoSizeColumn(i);
         }
 
-        return formattedInside.toString();
-    }
+        // Write to Excel file
+        try (FileOutputStream fileOut = new FileOutputStream("output.xlsx")) {
+            workbook.write(fileOut);
+        }
 
-    public static void main(String[] args) {
-        // Test cases
-        System.out.println(formatString("<> BARC_BICs")); // Output: not BARC_BIC
-        System.out.println(formatString("<> (BARC_BICs, BAUK_BICs)")); // Output: not BARC_BIC, not BAUK_BIC
-        System.out.println(formatString("(BARC_BICs, BAUK_BICs)")); // Output: BARC_BIC, BAUK_BIC
-        System.out.println(formatString("IN BARC_BICs")); // Output: BARC_BICs
-        System.out.println(formatString("Some other example IN BARC_BICs <> (BAUK_BICs, BARC_BICs)")); // Output: Some other example BARC_BIC not (BAUK_BIC, BARC_BIC)
+        // Close workbook
+        workbook.close();
+
+        System.out.println("Excel file created successfully.");
     }
 }
+
 ```
 
 ### Explanation of the Changes:
