@@ -15,130 +15,65 @@ Let’s improve the logic to handle both cases correctly:
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.FileOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
-public class MapToExcel {
+public class CountryCodeProcessor {
+    public static void main(String[] args) {
+        String excelFilePath = "path_to_your_file.xlsx"; // Replace with your file path
+        String targetColumn = "PAYMENT_DESTINATION_COUNTRY";
+        String targetValue = "Destination Countries mentioned in AH&NAH - Country code tab in Africa column";
 
-    public static void main(String[] args) throws IOException {
-        // Sample data structure
-        Map<String, List<Map<String, String>>> data = new HashMap<>();
-        
-        data.put("PET2435", Arrays.asList(
-                Map.of(
-                        "Type", "Data",
-                        "YOUR_REFERENCE", "Ref123",
-                        "CHARGING_INDICATOR", "Yes",
-                        "ORIG_AMOUNT_CURRENCY", "USD",
-                        "FINAL_MOP", "Wire",
-                        "RECEIVER_BIC", "BIC12345",
-                        "PSD_INDICATOR", "Active",
-                        "PAYMENT_DESTINATION_COUNTRY", "US",
-                        "MESSAGE_TYPE", "MT103",
-                        "DR_TRN_CODES", "CodeD1",
-                        "CR_TRN_CODES", "CodeC1",
-                        "FI_CHARGING_INDICATOR", "Indicator1"
-                ),
-                Map.of(
-                        "Type", "Rule",
-                        "BILLING_CODE", "BC123",
-                        "CHARGING_INDICATOR", "No",
-                        "CURRENCY", "EUR",
-                        "FINALMOP", "Check",
-                        "RECEIVER_BIC", "BIC54321",
-                        "PSD_INDICATOR", "Inactive",
-                        "PAYMENT_DESTINATION_COUNTRY", "FR",
-                        "MESSAGE_TYPE", "MT202",
-                        "DR_TRAN_CODE", "CodeD2",
-                        "CR_TRAN_CODE", "CodeC2",
-                        "FI_CHARGING_INDICATOR", "Indicator2",
-                        "DETECTION_PRIORITY", "High"
-                ),
-                Map.of(
-                        "Type", "Rule",
-                        "BILLING_CODE", "BC456",
-                        "CHARGING_INDICATOR", "Yes",
-                        "CURRENCY", "GBP",
-                        "FINALMOP", "Cash",
-                        "RECEIVER_BIC", "BIC67890",
-                        "PSD_INDICATOR", "Active",
-                        "PAYMENT_DESTINATION_COUNTRY", "UK",
-                        "MESSAGE_TYPE", "MT101",
-                        "DR_TRAN_CODE", "CodeD3",
-                        "CR_TRAN_CODE", "CodeC3",
-                        "FI_CHARGING_INDICATOR", "Indicator3",
-                        "DETECTION_PRIORITY", "Low"
-                )
-        ));
+        try {
+            Map<String, String> countryCodeMap = processExcelFile(excelFilePath);
 
-        // Define column headers
-        String[] headers = {
-                "Type", "LOCAL_REFERENCE_NO", "BILLING_CODE", "CHARGING_INDICATOR", "CURRENCY",
-                "FINAL_MOP", "RECEIVER_BIC", "PSD_INDICATOR", "PYMT_DEST_CTRY", "SWIFT_MSG_TYP",
-                "DR_TRN_CODES", "CR_TRN_CODES", "FI_CHARGING_INDICATOR", "Priority Order"
-        };
+            // Example logic for ahRuleValue assignment
+            String ahRuleValue = "x"; // Default value
+            if (targetValue.equalsIgnoreCase("Destination Countries mentioned in AH&NAH - Country code tab in Africa column")) {
+                ahRuleValue = countryCodeMap.getOrDefault("Africa (AFR)", "x");
+            }
 
-        // Create workbook and sheet
-        Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet("Data");
-
-        // Write header row
-        Row headerRow = sheet.createRow(0);
-        for (int i = 0; i < headers.length; i++) {
-            Cell cell = headerRow.createCell(i);
-            cell.setCellValue(headers[i]);
+            System.out.println("ahRuleValue: " + ahRuleValue);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+    }
 
-        // Write data rows
-        int rowIndex = 1;
-        for (Map.Entry<String, List<Map<String, String>>> entry : data.entrySet()) {
-            String localReferenceNo = entry.getKey();
-            List<Map<String, String>> maps = entry.getValue();
+    private static Map<String, String> processExcelFile(String excelFilePath) throws IOException {
+        Map<String, String> countryCodeMap = new HashMap<>();
+        try (FileInputStream fis = new FileInputStream(new File(excelFilePath));
+             Workbook workbook = new XSSFWorkbook(fis)) {
+            Sheet sheet = workbook.getSheetAt(0); // Assuming data is in the first sheet
+            int rowCount = sheet.getLastRowNum();
 
-            for (int i = 0; i < maps.size(); i++) {
-                Map<String, String> map = maps.get(i);
-                Row row = sheet.createRow(rowIndex++);
+            for (int col = 0; col < sheet.getRow(0).getLastCellNum(); col += 2) { // Increment by 2 due to empty column
+                Row headerRow = sheet.getRow(0);
+                if (headerRow == null || headerRow.getCell(col) == null) continue;
 
-                // Use the naming convention to fetch the correct keys
-                String billingCodeKey = i == 0 ? "YOUR_REFERENCE" : "BILLING_CODE";
-                String currencyKey = i == 0 ? "ORIG_AMOUNT_CURRENCY" : "CURRENCY";
-                String finalMopKey = i == 0 ? "FINAL_MOP" : "FINALMOP";
-                String drTranCodeKey = i == 0 ? "DR_TRN_CODES" : "DR_TRAN_CODE";
-                String crTranCodeKey = i == 0 ? "CR_TRN_CODES" : "CR_TRAN_CODE";
-                String detectionPriorityKey = i == 0 ? "NA" : "DETECTION_PRIORITY";
+                String header = headerRow.getCell(col).getStringCellValue().trim();
+                StringBuilder values = new StringBuilder();
 
-                row.createCell(0).setCellValue(map.getOrDefault("Type", ""));
-                row.createCell(1).setCellValue(localReferenceNo);
-                row.createCell(2).setCellValue(map.getOrDefault(billingCodeKey, ""));
-                row.createCell(3).setCellValue(map.getOrDefault("CHARGING_INDICATOR", ""));
-                row.createCell(4).setCellValue(map.getOrDefault(currencyKey, ""));
-                row.createCell(5).setCellValue(map.getOrDefault(finalMopKey, ""));
-                row.createCell(6).setCellValue(map.getOrDefault("RECEIVER_BIC", ""));
-                row.createCell(7).setCellValue(map.getOrDefault("PSD_INDICATOR", ""));
-                row.createCell(8).setCellValue(map.getOrDefault("PAYMENT_DESTINATION_COUNTRY", ""));
-                row.createCell(9).setCellValue(map.getOrDefault("MESSAGE_TYPE", ""));
-                row.createCell(10).setCellValue(map.getOrDefault(drTranCodeKey, ""));
-                row.createCell(11).setCellValue(map.getOrDefault(crTranCodeKey, ""));
-                row.createCell(12).setCellValue(map.getOrDefault("FI_CHARGING_INDICATOR", ""));
-                row.createCell(13).setCellValue(map.getOrDefault(detectionPriorityKey, "NA"));
+                for (int row = 1; row <= rowCount; row++) {
+                    Row currentRow = sheet.getRow(row);
+                    if (currentRow == null) continue;
+
+                    Cell cell = currentRow.getCell(col);
+                    if (cell != null && cell.getCellType() == CellType.STRING) {
+                        String cellValue = cell.getStringCellValue().trim();
+                        if (!cellValue.isEmpty()) {
+                            if (values.length() > 0) values.append(", ");
+                            values.append(cellValue);
+                        }
+                    }
+                }
+
+                countryCodeMap.put(header, values.toString());
             }
         }
-
-        // Auto-size columns
-        for (int i = 0; i < headers.length; i++) {
-            sheet.autoSizeColumn(i);
-        }
-
-        // Write to Excel file
-        try (FileOutputStream fileOut = new FileOutputStream("output.xlsx")) {
-            workbook.write(fileOut);
-        }
-
-        // Close workbook
-        workbook.close();
-
-        System.out.println("Excel file created successfully.");
+        return countryCodeMap;
     }
 }
 
