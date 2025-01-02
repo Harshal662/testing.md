@@ -1,8 +1,8 @@
-Got it! If you are working exclusively with Excel files for both the input files, I'll modify the code accordingly to handle Excel files instead of using `CSVReader`. Here's the updated code:
+To include the new logic, we'll incorporate a third Excel file with columns `BILLING_CODE`, `CURRENCY`, and `RESULT`. We'll count the occurrences of the three new result types (`Rules are not matching`, `Rules are overlapping and passing as per priority order`, and `Rules are overlapping but not passing as per priority order`) for each combination and add these counts to the final output.
 
 ---
 
-### Updated Code for Excel Files Only
+### Updated Code
 
 ```java
 import org.apache.poi.ss.usermodel.*;
@@ -16,6 +16,7 @@ public class UniqueCombinationCounterExcel {
     public static void main(String[] args) {
         String inputExcel1Path = "input1.xlsx"; // Path to the first input Excel
         String inputExcel2Path = "input2.xlsx"; // Path to the second input Excel
+        String inputExcel3Path = "input3.xlsx"; // Path to the third input Excel
         String outputExcelPath = "output.xlsx"; // Path to the output Excel
 
         try {
@@ -54,7 +55,7 @@ public class UniqueCombinationCounterExcel {
                 }
             }
 
-            // Step 2: Process the second Excel file to count RESULT occurrences for each combination
+            // Step 2: Process the second Excel file for RESULT counts
             Map<String, Map<String, Integer>> resultCounts = new HashMap<>();
 
             try (FileInputStream fis = new FileInputStream(inputExcel2Path);
@@ -95,7 +96,48 @@ public class UniqueCombinationCounterExcel {
                 }
             }
 
-            // Step 3: Write results to the output Excel file
+            // Step 3: Process the third Excel file for new RESULT counts
+            Map<String, Map<String, Integer>> newResultCounts = new HashMap<>();
+
+            try (FileInputStream fis = new FileInputStream(inputExcel3Path);
+                 Workbook workbook = new XSSFWorkbook(fis)) {
+
+                Sheet sheet = workbook.getSheetAt(0);
+                int refCol = -1, currencyCol = -1, resultCol = -1;
+
+                // Identify relevant columns from the header
+                Row headerRow = sheet.getRow(0);
+                for (int i = 0; i < headerRow.getPhysicalNumberOfCells(); i++) {
+                    String header = headerRow.getCell(i).getStringCellValue();
+                    if ("BILLING_CODE".equalsIgnoreCase(header)) {
+                        refCol = i;
+                    } else if ("CURRENCY".equalsIgnoreCase(header)) {
+                        currencyCol = i;
+                    } else if ("RESULT".equalsIgnoreCase(header)) {
+                        resultCol = i;
+                    }
+                }
+
+                if (refCol == -1 || currencyCol == -1 || resultCol == -1) {
+                    throw new IllegalArgumentException("Required columns not found in the third Excel.");
+                }
+
+                // Count RESULT occurrences for each combination
+                for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                    Row row = sheet.getRow(i);
+                    if (row == null) continue;
+
+                    String combination = row.getCell(refCol).getStringCellValue() + "," +
+                            row.getCell(currencyCol).getStringCellValue();
+                    String result = row.getCell(resultCol).getStringCellValue();
+
+                    newResultCounts.putIfAbsent(combination, new HashMap<>());
+                    Map<String, Integer> resultMap = newResultCounts.get(combination);
+                    resultMap.put(result, resultMap.getOrDefault(result, 0) + 1);
+                }
+            }
+
+            // Step 4: Write results to the output Excel file
             try (Workbook workbook = new XSSFWorkbook()) {
                 Sheet sheet = workbook.createSheet("Results");
 
@@ -106,6 +148,9 @@ public class UniqueCombinationCounterExcel {
                 headerRow.createCell(2).setCellValue("Success");
                 headerRow.createCell(3).setCellValue("Transaction Missing");
                 headerRow.createCell(4).setCellValue("Incorrect Product Detected");
+                headerRow.createCell(5).setCellValue("Rules are not matching");
+                headerRow.createCell(6).setCellValue("Rules are overlapping and passing as per priority order");
+                headerRow.createCell(7).setCellValue("Rules are overlapping but not passing as per priority order");
 
                 // Write data rows
                 int rowIndex = 1;
@@ -114,6 +159,7 @@ public class UniqueCombinationCounterExcel {
                     int count = entry.getValue();
 
                     Map<String, Integer> resultMap = resultCounts.getOrDefault(combination, new HashMap<>());
+                    Map<String, Integer> newResultMap = newResultCounts.getOrDefault(combination, new HashMap<>());
 
                     Row row = sheet.createRow(rowIndex++);
                     row.createCell(0).setCellValue(combination);
@@ -121,6 +167,9 @@ public class UniqueCombinationCounterExcel {
                     row.createCell(2).setCellValue(resultMap.getOrDefault("Success", 0));
                     row.createCell(3).setCellValue(resultMap.getOrDefault("Transaction Missing", 0));
                     row.createCell(4).setCellValue(resultMap.getOrDefault("Incorrect Product Detected", 0));
+                    row.createCell(5).setCellValue(newResultMap.getOrDefault("Rules are not matching", 0));
+                    row.createCell(6).setCellValue(newResultMap.getOrDefault("Rules are overlapping and passing as per priority order", 0));
+                    row.createCell(7).setCellValue(newResultMap.getOrDefault("Rules are overlapping but not passing as per priority order", 0));
                 }
 
                 // Save to file
@@ -142,27 +191,30 @@ public class UniqueCombinationCounterExcel {
 
 ### Explanation
 
-1. **Input Excel Files**:
-   - The code reads the first Excel file (`input1.xlsx`) to count unique combinations of `YOUR_REFERENCE` and `ORIG_AMOUNT_CURRENCY`.
-   - It reads the second Excel file (`input2.xlsx`) to map each combination to `RESULT` types (`Success`, `Transaction Missing`, and `Incorrect Product Detected`).
+1. **Input Files**:
+   - `input1.xlsx`: Contains `YOUR_REFERENCE` and `ORIG_AMOUNT_CURRENCY` for counting unique combinations.
+   - `input2.xlsx`: Maps combinations to `Success`, `Transaction Missing`, and `Incorrect Product Detected`.
+   - `input3.xlsx`: Maps combinations to three new result types.
 
-2. **Result Mapping**:
-   - A `Map<String, Map<String, Integer>>` is used to store the counts of `RESULT` types for each unique combination.
+2. **New Result Mapping**:
+   - Added a separate map (`newResultCounts`) for the new result types:  
+     - `Rules are not matching`
+     - `Rules are overlapping and passing as per priority order`
+     - `Rules are overlapping but not passing as per priority order`.
 
-3. **Output Excel**:
-   - The output Excel file (`output.xlsx`) contains columns for `Combination`, `Count`, `Success`, `Transaction Missing`, and `Incorrect Product Detected`.
-   - Each row corresponds to a unique combination with counts for all result types.
+3. **Output File**:
+   - The output Excel contains columns for all result types, ensuring the counts are displayed for each combination.
 
 ---
 
-### Example Output (`output.xlsx`)
+### Example Output
 
-| Combination       | Count | Success | Transaction Missing | Incorrect Product Detected |
-|--------------------|-------|---------|---------------------|----------------------------|
-| REF1,USD          | 2     | 2       | 0                   | 0                          |
-| REF1,EUR          | 1     | 0       | 1                   | 0                          |
-| REF2,USD          | 2     | 0       | 1                   | 1                          |
+#### Output Excel (`output.xlsx`)
 
-This ensures the counts for each result type are correctly mapped to their combinations.
+| Combination       | Count | Success | Transaction Missing | Incorrect Product Detected | Rules are not matching | Rules are overlapping and passing as per priority order | Rules are overlapping but not passing as per priority order |
+|--------------------|-------|---------|---------------------|----------------------------|-------------------------|----------------------------------------------------------|------------------------------------------------------------|
+| REF1,USD          | 2     | 2       | 0                   | 0                          | 1                       | 0                                                        | 1                                                          |
+| REF1,EUR          | 1     | 0       | 1                   | 0                          | 0                       | 1                                                        | 0                                                          |
+| REF2,USD          | 2     | 0       | 1                   | 1                          | 0                       | 1                                                        | 1                                                          |
 
-Let me know if further adjustments are required!
+This structure ensures all result types are accounted for across the combinations. Let me know if any further refinements are needed!
