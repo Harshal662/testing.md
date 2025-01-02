@@ -1,11 +1,10 @@
-Here’s the corrected logic to achieve the specified output, ensuring that the counts for `Success`, `Transaction Missing`, and `Incorrect Product Detected` are displayed correctly alongside the combinations. Each combination will have its respective counts for the result types.
+Got it! If you are working exclusively with Excel files for both the input files, I'll modify the code accordingly to handle Excel files instead of using `CSVReader`. Here's the updated code:
 
 ---
 
-### Corrected Code
+### Updated Code for Excel Files Only
 
 ```java
-import com.opencsv.CSVReader;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
@@ -13,54 +12,58 @@ import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 
-public class UniqueCombinationCounter {
+public class UniqueCombinationCounterExcel {
     public static void main(String[] args) {
-        String inputCsvPath = "input.csv"; // Path to input CSV
-        String inputExcelPath = "reference.xlsx"; // Path to the second input Excel
-        String outputExcelPath = "output.xlsx"; // Path to output Excel
+        String inputExcel1Path = "input1.xlsx"; // Path to the first input Excel
+        String inputExcel2Path = "input2.xlsx"; // Path to the second input Excel
+        String outputExcelPath = "output.xlsx"; // Path to the output Excel
 
         try {
-            // Step 1: Count unique combinations from the CSV file
+            // Step 1: Count unique combinations from the first Excel file
             Map<String, Integer> combinationCount = new HashMap<>();
-            try (CSVReader csvReader = new CSVReader(new FileReader(inputCsvPath))) {
-                String[] headers = csvReader.readNext(); // Read header row
-                if (headers == null) {
-                    throw new IllegalArgumentException("Input CSV is empty.");
-                }
 
-                int refIndex = -1;
-                int currencyIndex = -1;
+            try (FileInputStream fis = new FileInputStream(inputExcel1Path);
+                 Workbook workbook = new XSSFWorkbook(fis)) {
 
-                // Identify the indexes for the desired columns
-                for (int i = 0; i < headers.length; i++) {
-                    if ("YOUR_REFERENCE".equalsIgnoreCase(headers[i])) {
-                        refIndex = i;
-                    } else if ("ORIG_AMOUNT_CURRENCY".equalsIgnoreCase(headers[i])) {
-                        currencyIndex = i;
+                Sheet sheet = workbook.getSheetAt(0);
+                int refCol = -1, currencyCol = -1;
+
+                // Identify relevant columns from the header
+                Row headerRow = sheet.getRow(0);
+                for (int i = 0; i < headerRow.getPhysicalNumberOfCells(); i++) {
+                    String header = headerRow.getCell(i).getStringCellValue();
+                    if ("YOUR_REFERENCE".equalsIgnoreCase(header)) {
+                        refCol = i;
+                    } else if ("ORIG_AMOUNT_CURRENCY".equalsIgnoreCase(header)) {
+                        currencyCol = i;
                     }
                 }
 
-                if (refIndex == -1 || currencyIndex == -1) {
-                    throw new IllegalArgumentException("Required columns not found.");
+                if (refCol == -1 || currencyCol == -1) {
+                    throw new IllegalArgumentException("Required columns not found in the first Excel.");
                 }
 
-                String[] row;
-                while ((row = csvReader.readNext()) != null) {
-                    String key = row[refIndex] + "," + row[currencyIndex];
+                // Count unique combinations
+                for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                    Row row = sheet.getRow(i);
+                    if (row == null) continue;
+
+                    String key = row.getCell(refCol).getStringCellValue() + "," +
+                            row.getCell(currencyCol).getStringCellValue();
                     combinationCount.put(key, combinationCount.getOrDefault(key, 0) + 1);
                 }
             }
 
-            // Step 2: Process the second Excel file to map combinations to RESULT counts
+            // Step 2: Process the second Excel file to count RESULT occurrences for each combination
             Map<String, Map<String, Integer>> resultCounts = new HashMap<>();
 
-            try (FileInputStream fis = new FileInputStream(inputExcelPath);
+            try (FileInputStream fis = new FileInputStream(inputExcel2Path);
                  Workbook workbook = new XSSFWorkbook(fis)) {
 
                 Sheet sheet = workbook.getSheetAt(0);
                 int refCol = -1, currencyCol = -1, resultCol = -1;
 
-                // Identify the relevant columns from the header
+                // Identify relevant columns from the header
                 Row headerRow = sheet.getRow(0);
                 for (int i = 0; i < headerRow.getPhysicalNumberOfCells(); i++) {
                     String header = headerRow.getCell(i).getStringCellValue();
@@ -74,10 +77,10 @@ public class UniqueCombinationCounter {
                 }
 
                 if (refCol == -1 || currencyCol == -1 || resultCol == -1) {
-                    throw new IllegalArgumentException("Required columns not found in reference Excel.");
+                    throw new IllegalArgumentException("Required columns not found in the second Excel.");
                 }
 
-                // Iterate over rows and count RESULT occurrences for each combination
+                // Count RESULT occurrences for each combination
                 for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                     Row row = sheet.getRow(i);
                     if (row == null) continue;
@@ -137,16 +140,22 @@ public class UniqueCombinationCounter {
 
 ---
 
-### Explanation of Changes
-1. **Result Mapping**: Added a `Map<String, Map<String, Integer>>` to store counts of "Success," "Transaction Missing," and "Incorrect Product Detected" for each combination.
-2. **Result Lookup**: For each combination, the corresponding `RESULT` counts are fetched from the map and added to the Excel sheet.
-3. **Dynamic Default Values**: If a combination has no result for a particular type, a default count of `0` is used.
+### Explanation
+
+1. **Input Excel Files**:
+   - The code reads the first Excel file (`input1.xlsx`) to count unique combinations of `YOUR_REFERENCE` and `ORIG_AMOUNT_CURRENCY`.
+   - It reads the second Excel file (`input2.xlsx`) to map each combination to `RESULT` types (`Success`, `Transaction Missing`, and `Incorrect Product Detected`).
+
+2. **Result Mapping**:
+   - A `Map<String, Map<String, Integer>>` is used to store the counts of `RESULT` types for each unique combination.
+
+3. **Output Excel**:
+   - The output Excel file (`output.xlsx`) contains columns for `Combination`, `Count`, `Success`, `Transaction Missing`, and `Incorrect Product Detected`.
+   - Each row corresponds to a unique combination with counts for all result types.
 
 ---
 
-### Example Output
-
-#### Output Excel (`output.xlsx`)
+### Example Output (`output.xlsx`)
 
 | Combination       | Count | Success | Transaction Missing | Incorrect Product Detected |
 |--------------------|-------|---------|---------------------|----------------------------|
@@ -154,8 +163,6 @@ public class UniqueCombinationCounter {
 | REF1,EUR          | 1     | 0       | 1                   | 0                          |
 | REF2,USD          | 2     | 0       | 1                   | 1                          |
 
-This ensures the total count of each combination matches the counts of the result types.
+This ensures the counts for each result type are correctly mapped to their combinations.
 
----
-
-Let me know if further refinements or clarifications are needed!
+Let me know if further adjustments are required!
