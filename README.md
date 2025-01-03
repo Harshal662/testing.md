@@ -1,9 +1,8 @@
-Here's the updated code with the additional logic for the 3rd Excel. The logic processes this file separately, handles redundant rows, and ensures the results align with your requirements.
+Understood! I'll remove the **Third Excel Count** column and directly calculate and include only the required result counts from the third Excel. Here's the updated code:
 
 ---
 
-### Updated Code
-
+### Updated Code (No "Third Excel Count")
 ```java
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -28,10 +27,10 @@ public class UniqueCombinationCounterExcel {
             Map<String, Map<String, Integer>> resultCounts1 = processSecondExcel(inputExcel2Path);
 
             // Step 3: Handle redundant rows and map results from the third Excel file
-            Map<String, Integer> combinationCount3 = processThirdExcel(inputExcel3Path);
+            Map<String, Map<String, Integer>> resultCounts3 = processThirdExcel(inputExcel3Path);
 
             // Step 4: Write results to the output Excel file
-            writeResultsToExcel(outputExcelPath, combinationCount, resultCounts1, combinationCount3);
+            writeResultsToExcel(outputExcelPath, combinationCount, resultCounts1, resultCounts3);
 
             System.out.println("Processing complete. Output saved to: " + outputExcelPath);
 
@@ -121,8 +120,8 @@ public class UniqueCombinationCounterExcel {
     }
 
     // Process the third Excel file
-    private static Map<String, Integer> processThirdExcel(String inputExcel3Path) throws IOException {
-        Map<String, Integer> combinationCount = new LinkedHashMap<>();
+    private static Map<String, Map<String, Integer>> processThirdExcel(String inputExcel3Path) throws IOException {
+        Map<String, Map<String, Integer>> resultCounts = new LinkedHashMap<>();
         try (FileInputStream fis = new FileInputStream(inputExcel3Path);
              Workbook workbook = new XSSFWorkbook(fis)) {
 
@@ -156,23 +155,27 @@ public class UniqueCombinationCounterExcel {
                 rowIndexMap.put(billingCode, i); // Overwrite previous occurrences
             }
 
-            // Count combinations using the last occurrence
+            // Count combinations using the last occurrence and count RESULTS
             for (int rowIndex : rowIndexMap.values()) {
                 Row row = sheet.getRow(rowIndex);
                 if (row == null) continue;
 
                 String key = row.getCell(billingCodeCol).getStringCellValue() + "," +
                         row.getCell(currencyCol).getStringCellValue();
-                combinationCount.put(key, combinationCount.getOrDefault(key, 0) + 1);
+                String result = row.getCell(resultCol).getStringCellValue();
+
+                resultCounts.putIfAbsent(key, new HashMap<>());
+                Map<String, Integer> resultMap = resultCounts.get(key);
+                resultMap.put(result, resultMap.getOrDefault(result, 0) + 1);
             }
         }
-        return combinationCount;
+        return resultCounts;
     }
 
     // Write all results to the output Excel file
     private static void writeResultsToExcel(String outputExcelPath, Map<String, Integer> combinationCount1,
                                             Map<String, Map<String, Integer>> resultCounts1,
-                                            Map<String, Integer> combinationCount3) throws IOException {
+                                            Map<String, Map<String, Integer>> resultCounts3) throws IOException {
 
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Results");
@@ -184,7 +187,9 @@ public class UniqueCombinationCounterExcel {
             headerRow.createCell(2).setCellValue("Success");
             headerRow.createCell(3).setCellValue("Transaction Missing");
             headerRow.createCell(4).setCellValue("Incorrect Product Detected");
-            headerRow.createCell(5).setCellValue("Third Excel Count");
+            headerRow.createCell(5).setCellValue("Rules are not matching");
+            headerRow.createCell(6).setCellValue("Rules are overlapping and passing as per priority order");
+            headerRow.createCell(7).setCellValue("Rules are overlapping but not passing as per priority order");
 
             // Write data rows
             int rowIndex = 1;
@@ -192,20 +197,23 @@ public class UniqueCombinationCounterExcel {
                 String combination = entry.getKey();
                 int count = entry.getValue();
 
-                Map<String, Integer> resultMap = resultCounts1.getOrDefault(combination, new HashMap<>());
+                Map<String, Integer> resultMap1 = resultCounts1.getOrDefault(combination, new HashMap<>());
+                Map<String, Integer> resultMap3 = resultCounts3.getOrDefault(combination, new HashMap<>());
 
                 Row row = sheet.createRow(rowIndex++);
                 row.createCell(0).setCellValue(combination);
                 row.createCell(1).setCellValue(count);
-                row.createCell(2).setCellValue(resultMap.getOrDefault("Success", 0));
-                row.createCell(3).setCellValue(resultMap.getOrDefault("Transaction Missing", 0));
-                row.createCell(4).setCellValue(resultMap.getOrDefault("Incorrect Product Detected", 0));
-                row.createCell(5).setCellValue(combinationCount3.getOrDefault(combination, 0));
+                row.createCell(2).setCellValue(resultMap1.getOrDefault("Success", 0));
+                row.createCell(3).setCellValue(resultMap1.getOrDefault("Transaction Missing", 0));
+                row.createCell(4).setCellValue(resultMap1.getOrDefault("Incorrect Product Detected", 0));
+                row.createCell(5).setCellValue(resultMap3.getOrDefault("Rules are not matching", 0));
+                row.createCell(6).setCellValue(resultMap3.getOrDefault("Rules are overlapping and passing as per priority order", 0));
+                row.createCell(7).setCellValue(resultMap3.getOrDefault("Rules are overlapping but not passing as per priority order", 0));
             }
 
-            // Save to file
-            try (FileOutputStream fileOut = new FileOutputStream(outputExcelPath)) {
-                workbook.write(fileOut);
+            // Write to output file
+            try (FileOutputStream fos = new FileOutputStream(outputExcelPath)) {
+                workbook.write(fos);
             }
         }
     }
@@ -214,36 +222,11 @@ public class UniqueCombinationCounterExcel {
 
 ---
 
-### Explanation
+### Changes Made:
+- **Removed Third Excel Count**: The column has been omitted from both the logic and the output file.
+- The logic for processing the third Excel is retained and only calculates the counts for the three result types:
+  - `"Rules are not matching"`
+  - `"Rules are overlapping and passing as per priority order"`
+  - `"Rules are overlapping but not passing as per priority order"`
 
-1. **First and Second Excel**:
-   - The logic for the first and second Excel remains unchanged.
-
-2. **Third Excel**:
-   - Duplicates are handled by keeping only the last occurrence using a `LinkedHashMap`.
-   - A combination of `BILLING_CODE` and `CURRENCY` is counted, similar to the first file.
-   - The count for each combination is stored in a `Map<String, Integer>`.
-
-3. **Output**:
-   - Results are written to a single Excel file.
-   - Columns include `Combination`, counts from the first and third Excel files, and counts for results from the second Excel.
-
----
-
-### Example Input and Output
-
-#### Input Excel 3 (Before Processing)
-| YOUR_REFERENCE | BILLING_CODE | CURRENCY | RESULT                                   |
-|----------------|--------------|----------|------------------------------------------|
-| REF1           | REF1         | USD      | Rules are not matching                  |
-| REF1           | REF1         | USD      | Rules are overlapping but not passing   |
-| REF1           | REF1         | USD      | Rules are overlapping and passing       |
-| REF2           | REF2         | EUR      | Rules are overlapping and passing       |
-
-#### Output Excel
-| Combination       | Count | Success | Transaction Missing | Incorrect Product Detected | Third Excel Count |
-|--------------------|-------|---------|---------------------|----------------------------|-------------------|
-| REF1,USD          | 2     | 2       | 0                   | 0                          | 3                 |
-| REF2,EUR          | 1     | 0       | 1                   | 0                          | 1                 |
-
-This output aligns with the provided input and ensures the third Excel logic integrates seamlessly with the first two. Let me know if you need more adjustments!
+This ensures the final Excel file includes only the required columns. Let me know if you need further refinements!
